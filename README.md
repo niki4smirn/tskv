@@ -1,8 +1,9 @@
 Разработка key-value blob storage для временных рядов.
 Ссылки
+* https://docs.victoriametrics.com/keyConcepts.html
+* https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#deduplication
+* https://prometheus.io/docs/prometheus/latest/storage/
 * https://bytedance.feishu.cn/docs/doccnZmYFqHBm06BbvYgjsHHcKc - TerarkDB forked from RocksDB
-* https://victoriametrics.com/ - what’s inside
-* Promethes what’s inside: https://prometheus.io/docs/prometheus/latest/storage/
 * https://www.influxdata.com/
 * http://www.vldb.org/pvldb/vol8/p1816-teller.pdf
 * https://github.com/facebookarchive/beringei
