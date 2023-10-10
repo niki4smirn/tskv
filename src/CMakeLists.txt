@@ -12,13 +12,13 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(Protobuf REQUIRED)
-add_subdirectory(src/proto)
+add_subdirectory(proto)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${Protobuf_INCLUDE_DIRS})
 
 add_executable(ts-kv-blob
-        src/main.cpp
-        src/storage/storage.cpp
+        main.cpp
+        storage/storage.cpp
 )
 
 find_package(Protobuf REQUIRED)
