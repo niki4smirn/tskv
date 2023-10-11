@@ -18,7 +18,6 @@ include_directories(${Protobuf_INCLUDE_DIRS})
 
 add_executable(ts-kv-blob
         main.cpp
-        storage/storage.cpp
 )
 
 find_package(Protobuf REQUIRED)

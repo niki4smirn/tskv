@@ -1,4 +1,4 @@
-#include "proto/ydb_keyvalue.pb.h"
+#include "storage/storage.h"
 
 int main() {
 
