@@ -9,6 +9,7 @@
 * https://github.com/facebookarchive/beringei
 * http://daslab.seas.harvard.edu/monkey/
 * [Лекции по таймсериям, обзор БД](https://db.cs.cmu.edu/seminar2017/)
+
 Интерфейс:
 * https://github.com/ydb-platform/ydb/blob/main/ydb/public/api/protos/ydb_keyvalue.proto
 
