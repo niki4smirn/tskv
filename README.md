@@ -9,6 +9,7 @@
 * https://github.com/facebookarchive/beringei
 * http://daslab.seas.harvard.edu/monkey/
 * [Лекции по таймсериям, обзор БД](https://db.cs.cmu.edu/seminar2017/)
+* [Gorilla reference implementation](https://github.com/facebookarchive/beringei/blob/92784ec6e22572f28500c76b669276007635c875/beringei/lib/TimeSeriesStream.cpp)
 
 Интерфейс:
 * https://github.com/ydb-platform/ydb/blob/main/ydb/public/api/protos/ydb_keyvalue.proto
