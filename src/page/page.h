@@ -1,3 +1,5 @@
+#pragma once
+
 #include "model/model.h"
 #include "persistent-storage/persistent_storage.h"
 

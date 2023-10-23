@@ -1,3 +1,4 @@
+#pragma once
 // still not sure about WAL interface, because of truncation difficulties
 //
 // the best idea for now is to say, that we don't store in memtable data,
