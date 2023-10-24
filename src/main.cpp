@@ -2,8 +2,8 @@
 #include "persistent-storage/disk_storage.h"
 #include "storage/storage.h"
 
-#include <vector>
 #include <iostream>
+#include <vector>
 
 int main() {
   tskv::Storage storage;
@@ -14,7 +14,8 @@ int main() {
       std::make_shared<tskv::DiskStorage>(
           tskv::DiskStorage::Options{"./tmp/tskv", true})});
   storage.Write(metric_id,
-                tskv::InputTimeSeries{{1, 1}, {2, 2}, {2, 1}, {3, 1}, {3, 10}, {4, 2}, {4, -1}});
+                tskv::InputTimeSeries{
+                    {1, 1}, {2, 2}, {2, 1}, {3, 1}, {3, 10}, {4, 2}, {4, -1}});
 
   auto column = storage.Read(metric_id, tskv::TimeRange{1, 5},
                              tskv::AggregationType::kSum);

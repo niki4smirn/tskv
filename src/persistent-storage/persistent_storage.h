@@ -1,12 +1,13 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string>
+#include "model/column.h"
 
 namespace tskv {
 
-class PageId;
-class IPage;
+using PageId = uint64_t;
 
 class IPersistentStorage {
  public:
@@ -16,9 +17,10 @@ class IPersistentStorage {
   virtual ~IPersistentStorage() = default;
 
   virtual Metadata GetMetadata() const = 0;
-  virtual std::shared_ptr<IPage> Read(const PageId& page_id) = 0;
-  // returns true on success, false otherwise
-  virtual bool Write(const PageId& page_id, std::shared_ptr<IPage> page) = 0;
+  virtual PageId CreatePage() = 0;
+  virtual CompressedBytes Read(const PageId& page_id) = 0;
+  virtual void Write(const PageId& page_id, const CompressedBytes& bytes) = 0;
+  virtual void DeletePage(const PageId& page_id) = 0;
 };
 
 }  // namespace tskv

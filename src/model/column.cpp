@@ -114,4 +114,8 @@ std::vector<Value> SumColumn::GetValues() const {
   return buckets_;
 }
 
+Column FromBytes(const CompressedBytes& bytes, ColumnType column_type) {
+  // TODO: implement
+  assert(false);
+}
 }  // namespace tskv

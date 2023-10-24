@@ -23,6 +23,7 @@ void Memtable::Write(const InputTimeSeries& time_series) {
 
 Memtable::ReadResult Memtable::Read(const std::vector<TimeRange>& time_ranges,
                                     StoredAggregationType aggregation_type) {
+  // temporary condition with sum column
   auto it = std::find_if(
       columns_.begin(), columns_.end(),
       [](const auto& column) { return column->GetType() == ColumnType::kSum; });

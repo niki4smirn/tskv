@@ -16,7 +16,7 @@ class PersistentStorageManager {
   void Write(const Columns& columns);
 
   Columns Read(const std::vector<TimeRange>& time_ranges,
-               AggregationType aggregation_type);
+               StoredAggregationType aggregation_type);
 
  private:
   std::vector<Level> levels_;

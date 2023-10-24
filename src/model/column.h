@@ -75,6 +75,6 @@ Column CreateColumn(ColumnType column_type, Args&&... args) {
   }
 }
 
-Column FromBytes(const CompressedBytes& bytes);
+Column FromBytes(const CompressedBytes& bytes, ColumnType column_type);
 
 }  // namespace tskv

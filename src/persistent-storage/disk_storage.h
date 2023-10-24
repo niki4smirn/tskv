@@ -14,11 +14,14 @@ class DiskStorage : public IPersistentStorage {
  public:
   DiskStorage(const Options& options);
   Metadata GetMetadata() const override;
-  std::shared_ptr<IPage> Read(const PageId& page_id) override;
-  bool Write(const PageId& page_id, std::shared_ptr<IPage> page) override;
+  PageId CreatePage() override;
+  CompressedBytes Read(const PageId& page_id) override;
+  void Write(const PageId& page_id, const CompressedBytes& bytes) override;
+  void DeletePage(const PageId& page_id) override;
 
  private:
   std::string path_;
+  PageId next_page_id_{0};
 };
 
 }  // namespace tskv

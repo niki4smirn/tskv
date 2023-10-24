@@ -17,6 +17,7 @@ include_directories(${Protobuf_INCLUDE_DIRS})
 
 add_executable(ts-kv-blob
         cache/cache.cpp
+        level/level.cpp
         main.cpp
         memtable/memtable.cpp
         metric-storage/metric_storage.cpp
