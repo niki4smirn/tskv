@@ -21,6 +21,7 @@ enum class ColumnType {
   kMax,
   kRawTimestamps,
   kRawValues,
+  kRawRead,
 };
 
 // I think, that Column should stores data vector with offsets and lengths, so
@@ -35,19 +36,23 @@ class IColumn {
   virtual ColumnType GetType() const = 0;
   virtual CompressedBytes ToBytes() const = 0;
   virtual void Merge(Column column) = 0;
-  virtual Column Read(const TimeRange& time_range) const = 0;
   virtual void Write(const InputTimeSeries& time_series) = 0;
   virtual std::vector<Value> GetValues() const = 0;
   virtual ~IColumn() = default;
 };
 
+class IReadColumn : public IColumn {
+ public:
+  virtual Column Read(const TimeRange& time_range) const = 0;
+};
+
 using Column = std::shared_ptr<IColumn>;
 using Columns = std::vector<Column>;
 
-class SumColumn : public IColumn {
+class SumColumn : public IReadColumn {
  public:
   SumColumn(size_t bucket_interval);
-  SumColumn(std::vector<double> buckets, const TimeRange& time_range,
+  SumColumn(const std::vector<double>& buckets, const TimeRange& time_range,
             size_t bucket_interval);
   ColumnType GetType() const override;
   CompressedBytes ToBytes() const override;
@@ -65,16 +70,60 @@ class SumColumn : public IColumn {
   size_t bucket_interval_;
 };
 
-template <typename... Args>
-Column CreateColumn(ColumnType column_type, Args&&... args) {
-  switch (column_type) {
-    case ColumnType::kSum:
-      return std::make_shared<SumColumn>(std::forward<Args>(args)...);
-    default:
-      throw std::runtime_error("Unsupported column type");
-  }
-}
+class RawTimestampsColumn : public IColumn {
+ public:
+  friend class ReadRawColumn;
+  RawTimestampsColumn() = default;
+  RawTimestampsColumn(const std::vector<TimePoint>& timestamps);
+  ColumnType GetType() const override;
+  CompressedBytes ToBytes() const override;
+  void Merge(Column column) override;
+  void Write(const InputTimeSeries& time_series) override;
+  // not the best way to return timestamps, but I didn't want to break the interface
+  std::vector<Value> GetValues() const override;
 
-Column FromBytes(const CompressedBytes& bytes, ColumnType column_type);
+ private:
+  std::vector<TimePoint> timestamps_;
+};
+
+class RawValuesColumn : public IColumn {
+ public:
+  friend class ReadRawColumn;
+  RawValuesColumn() = default;
+  RawValuesColumn(const std::vector<Value>& values);
+  ColumnType GetType() const override;
+  CompressedBytes ToBytes() const override;
+  void Merge(Column column) override;
+  void Write(const InputTimeSeries& time_series) override;
+  std::vector<Value> GetValues() const override;
+
+ private:
+  std::vector<Value> values_;
+};
+
+class ReadRawColumn : public IReadColumn {
+ public:
+  ReadRawColumn() = default;
+  ReadRawColumn(const std::vector<TimePoint>& timestamps,
+                const std::vector<Value>& values);
+  ColumnType GetType() const override;
+  CompressedBytes ToBytes() const override;
+  void Merge(Column column) override;
+  Column Read(const TimeRange& time_range) const override;
+  void Write(const InputTimeSeries& time_series) override;
+  std::vector<Value> GetValues() const override;
+
+  std::vector<TimePoint> GetTimestamps() const;
+
+ private:
+  std::vector<TimePoint> timestamps_;
+  std::vector<Value> values_;
+};
+
+Column CreateColumn(ColumnType column_type, size_t bucket_interval);
+
+Column CreateRawColumn(ColumnType column_type);
+
+Column FromBytes(const CompressedBytes& bytes, ColumnType);
 
 }  // namespace tskv

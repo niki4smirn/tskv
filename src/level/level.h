@@ -14,6 +14,10 @@ class Level {
   void Write(const Column& column);
 
  private:
+  Column ReadRawValues(const TimeRange& time_range,
+                       StoredAggregationType aggregation_type);
+
+ private:
   std::shared_ptr<IPersistentStorage> storage_;
   std::vector<std::pair<ColumnType, PageId>> page_ids_;
 };

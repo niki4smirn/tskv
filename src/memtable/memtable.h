@@ -7,8 +7,8 @@
 #include <optional>
 #include <vector>
 
-#include "model/model.h"
 #include "model/column.h"
+#include "model/model.h"
 
 namespace tskv {
 
@@ -35,6 +35,9 @@ class Memtable {
   bool NeedFlush() const;
 
  private:
+  ReadResult ReadRawValues(const std::vector<TimeRange>& time_ranges,
+                           StoredAggregationType aggregation_type);
+
   Columns columns_;
   Options options_;
   size_t size_{0};

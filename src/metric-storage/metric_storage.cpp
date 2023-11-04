@@ -21,9 +21,9 @@ Column MetricStorage::Read(const TimeRange& time_range,
     assert(false);
   }
   auto stored_aggregation = ToStoredAggregationType(aggregation_type);
-  auto [found, not_found] =
-      memtable_.Read({time_range}, stored_aggregation);
-  auto columns = persistent_storage_manager_.Read(not_found, stored_aggregation);
+  auto [found, not_found] = memtable_.Read({time_range}, stored_aggregation);
+  auto columns =
+      persistent_storage_manager_.Read(not_found, stored_aggregation);
 
   // merge iterates over all columns in chronological order
   Column result;

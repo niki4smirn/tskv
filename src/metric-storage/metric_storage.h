@@ -10,6 +10,7 @@ namespace tskv {
 
 struct MetricOptions {
   std::vector<ColumnType> column_types;
+  // move bucket interval here
 };
 
 class MetricStorage {
