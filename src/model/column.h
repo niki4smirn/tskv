@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cassert>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -9,6 +10,51 @@
 namespace tskv {
 
 using CompressedBytes = std::vector<uint8_t>;
+
+template <typename T>
+void Append(CompressedBytes& bytes, const T& value) {
+  auto begin = reinterpret_cast<const uint8_t*>(&value);
+  auto end = begin + sizeof(T);
+  bytes.insert(bytes.end(), begin, end);
+}
+
+template <typename T>
+void Append(CompressedBytes& bytes, T* value, size_t size) {
+  auto begin = reinterpret_cast<const uint8_t*>(value);
+  auto end = begin + size * sizeof(T);
+  bytes.insert(bytes.end(), begin, end);
+}
+
+struct CompressedBytesReader {
+  CompressedBytesReader(const CompressedBytes& bytes) : bytes_(bytes) {}
+
+  template <typename T>
+  T Read() {
+    assert(offset_ + sizeof(T) <= bytes_.size());
+    auto begin = bytes_.begin() + offset_;
+    auto end = begin + sizeof(T);
+    offset_ += sizeof(T);
+    T value;
+    std::copy(begin, end, reinterpret_cast<uint8_t*>(&value));
+    return value;
+  }
+
+  template <typename T>
+  std::vector<T> ReadAll() {
+    auto begin = bytes_.begin() + offset_;
+    auto end = bytes_.end();
+    offset_ += (end - begin);
+    std::vector<T> values;
+    values.insert(values.end(), reinterpret_cast<const T*>(&*begin),
+                  reinterpret_cast<const T*>(&*end));
+    return values;
+  }
+
+ private:
+  const CompressedBytes& bytes_;
+  size_t offset_{0};
+};
+
 struct Record;
 using InputTimeSeries = std::vector<Record>;
 
@@ -124,6 +170,6 @@ Column CreateColumn(ColumnType column_type, size_t bucket_interval);
 
 Column CreateRawColumn(ColumnType column_type);
 
-Column FromBytes(const CompressedBytes& bytes, ColumnType);
+Column FromBytes(const CompressedBytes& bytes, ColumnType column_type);
 
 }  // namespace tskv

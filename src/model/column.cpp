@@ -1,7 +1,8 @@
 #include "column.h"
+
 #include <algorithm>
 #include <cassert>
-
+#include <cstring>
 #include <ranges>
 
 namespace tskv {
@@ -20,7 +21,12 @@ ColumnType SumColumn::GetType() const {
 }
 
 CompressedBytes SumColumn::ToBytes() const {
-  return {};
+  CompressedBytes res;
+  Append(res, bucket_interval_);
+  Append(res, time_range_.start);
+  Append(res, time_range_.end);
+  Append(res, buckets_.data(), buckets_.size());
+  return res;
 }
 
 // column interval should start further than this->time_range.start
@@ -123,7 +129,9 @@ ColumnType RawTimestampsColumn::GetType() const {
 }
 
 CompressedBytes RawTimestampsColumn::ToBytes() const {
-  return {};
+  CompressedBytes res;
+  Append(res, timestamps_.data(), timestamps_.size());
+  return res;
 }
 
 void RawTimestampsColumn::Merge(Column column) {
@@ -170,7 +178,9 @@ ColumnType RawValuesColumn::GetType() const {
 }
 
 CompressedBytes RawValuesColumn::ToBytes() const {
-  return {};
+  CompressedBytes res;
+  Append(res, values_.data(), values_.size());
+  return res;
 }
 
 void RawValuesColumn::Merge(Column column) {
@@ -242,11 +252,6 @@ std::vector<TimePoint> ReadRawColumn::GetTimestamps() const {
   return timestamps_;
 }
 
-Column FromBytes(const CompressedBytes& bytes, ColumnType column_type) {
-  // TODO: implement
-  assert(false);
-}
-
 Column CreateRawColumn(ColumnType column_type) {
   switch (column_type) {
     case ColumnType::kRawValues:
@@ -266,4 +271,33 @@ Column CreateColumn(ColumnType column_type, size_t bucket_interval) {
       throw std::runtime_error("Unsupported column type");
   }
 }
+
+Column FromBytes(const CompressedBytes& bytes, ColumnType column_type) {
+  switch (column_type) {
+    case ColumnType::kRawValues: {
+      auto data = reinterpret_cast<const Value*>(bytes.data());
+      auto sz = bytes.size() / sizeof(Value);
+      return std::make_shared<RawValuesColumn>(
+          std::vector<Value>(data, data + sz));
+    }
+    case ColumnType::kRawTimestamps: {
+      auto data = reinterpret_cast<const TimePoint*>(bytes.data());
+      auto sz = bytes.size() / sizeof(TimePoint);
+      return std::make_shared<RawTimestampsColumn>(
+          std::vector<TimePoint>(data, data + sz));
+    }
+    case ColumnType::kSum: {
+      auto reader = CompressedBytesReader(bytes);
+      auto bucket_interval = reader.Read<size_t>();
+      auto start = reader.Read<TimePoint>();
+      auto end = reader.Read<TimePoint>();
+      auto buckets = reader.ReadAll<Value>();
+      return std::make_shared<SumColumn>(buckets, TimeRange{start, end},
+                                         bucket_interval);
+    }
+    default:
+      throw std::runtime_error("Unsupported column type");
+  }
+}
+
 }  // namespace tskv

@@ -68,12 +68,12 @@ Memtable::ReadResult Memtable::ReadRawValues(
   auto ts_it = std::ranges::find(columns_, ColumnType::kRawTimestamps,
                                  &IColumn::GetType);
   if (ts_it == columns_.end()) {
-    return {};
+    return {.not_found = time_ranges};
   }
   auto vals_it =
       std::ranges::find(columns_, ColumnType::kRawValues, &IColumn::GetType);
   if (vals_it == columns_.end()) {
-    return {};
+    return {.not_found = time_ranges};
   }
   Memtable::ReadResult result;
   for (const auto& time_range : time_ranges) {
