@@ -2,10 +2,14 @@ cmake_minimum_required(VERSION 3.19)
 project(ts-kv-blob)
 
 set(CMAKE_CXX_STANDARD 23)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address,leak,undefined")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 
-set(Protobuf_PROTOC_EXECUTABLE /usr/local/bin/protoc)
+if (NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address,leak,undefined")
+
+    # my protoc was installed in a strange way, so I need to specify the path :(
+    set(Protobuf_PROTOC_EXECUTABLE /usr/local/bin/protoc)
+endif()
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
