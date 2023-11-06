@@ -11,23 +11,27 @@ Level::Level(std::shared_ptr<IPersistentStorage> storage) {
   storage_ = storage;
 }
 
-Column Level::Read(const TimeRange& time_range,
-                   StoredAggregationType aggregation_type) {
+Columns Level::Read(const std::vector<TimeRange>& time_ranges,
+                    StoredAggregationType aggregation_type) {
   auto column_type = static_cast<ColumnType>(aggregation_type);
   auto it = std::ranges::find(page_ids_, column_type,
                               &std::pair<ColumnType, PageId>::first);
   if (it == page_ids_.end()) {
-    return ReadRawValues(time_range, aggregation_type);
+    return ReadRawValues(time_ranges, aggregation_type);
   }
   auto bytes = storage_->Read(it->second);
-  auto result =
+  auto column =
       std::static_pointer_cast<IReadColumn>(FromBytes(bytes, column_type));
 
-  return result->Read(time_range);
+  Columns res;
+  for (const auto& time_range : time_ranges) {
+    res.push_back(column->Read(time_range));
+  }
+  return res;
 }
 
-Column Level::ReadRawValues(const TimeRange& time_range,
-                            StoredAggregationType aggregation_type) {
+Columns Level::ReadRawValues(const std::vector<TimeRange>& time_ranges,
+                             StoredAggregationType aggregation_type) {
   auto ts_it = std::ranges::find(page_ids_, ColumnType::kRawTimestamps,
                                  &std::pair<ColumnType, PageId>::first);
   if (ts_it == page_ids_.end()) {
@@ -41,10 +45,15 @@ Column Level::ReadRawValues(const TimeRange& time_range,
   auto vals_column = std::static_pointer_cast<RawValuesColumn>(
       FromBytes(storage_->Read(vals_it->second), ColumnType::kRawValues));
   auto ts_values = ts_column->GetValues();
-  return std::make_shared<ReadRawColumn>(
-             std::vector<TimePoint>(ts_values.begin(), ts_values.end()),
-             vals_column->GetValues())
-      ->Read(time_range);
+  auto read_column = std::make_shared<ReadRawColumn>(
+      std::vector<TimePoint>(ts_values.begin(), ts_values.end()),
+      vals_column->GetValues());
+
+  Columns res;
+  for (const auto& time_range : time_ranges) {
+    res.push_back(read_column->Read(time_range));
+  }
+  return res;
 }
 
 void Level::Write(const Column& column) {

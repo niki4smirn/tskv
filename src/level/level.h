@@ -9,12 +9,12 @@ namespace tskv {
 class Level {
  public:
   Level(std::shared_ptr<IPersistentStorage> storage);
-  Column Read(const TimeRange& time_range,
+  Columns Read(const std::vector<TimeRange>& time_ranges,
               StoredAggregationType aggregation_type);
   void Write(const Column& column);
 
  private:
-  Column ReadRawValues(const TimeRange& time_range,
+  Columns ReadRawValues(const std::vector<TimeRange>& time_ranges,
                        StoredAggregationType aggregation_type);
 
  private:
