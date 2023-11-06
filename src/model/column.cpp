@@ -82,7 +82,7 @@ void SumColumn::Merge(Column column) {
   time_range_.end = std::max(time_range_.end, sum_column->time_range_.end);
 }
 
-Column SumColumn::Read(const TimeRange& time_range) const {
+ReadColumn SumColumn::Read(const TimeRange& time_range) const {
   auto start_bucket = *GetBucketIdx(time_range.start);
   auto end_bucket = *GetBucketIdx(time_range.end);
   return std::make_shared<SumColumn>(
@@ -121,6 +121,10 @@ std::optional<size_t> SumColumn::GetBucketIdx(TimePoint timestamp) const {
 
 std::vector<Value> SumColumn::GetValues() const {
   return buckets_;
+}
+
+TimeRange SumColumn::GetTimeRange() const {
+  return time_range_;
 }
 
 RawTimestampsColumn::RawTimestampsColumn(
@@ -251,7 +255,7 @@ void ReadRawColumn::Merge(Column column) {
   values_column_->Merge(read_raw_column->values_column_);
 }
 
-Column ReadRawColumn::Read(const TimeRange& time_range) const {
+ReadColumn ReadRawColumn::Read(const TimeRange& time_range) const {
   auto& timestamps = timestamps_column_->timestamps_;
   auto& values = values_column_->values_;
   auto start =
@@ -270,6 +274,11 @@ void ReadRawColumn::Write(const InputTimeSeries& time_series) {
 
 std::vector<Value> ReadRawColumn::GetValues() const {
   return values_column_->GetValues();
+}
+
+TimeRange ReadRawColumn::GetTimeRange() const {
+  return TimeRange{timestamps_column_->timestamps_.front(),
+                   timestamps_column_->timestamps_.back()};
 }
 
 std::vector<TimePoint> ReadRawColumn::GetTimestamps() const {

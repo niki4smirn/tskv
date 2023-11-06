@@ -41,8 +41,12 @@ Memtable::ReadResult Memtable::Read(const TimeRange& time_range,
 
   auto column = std::static_pointer_cast<IReadColumn>(*it);
   auto column_res = column->Read(time_range);
-  // TODO: check if part of time range was not found
-  return {.found = column_res, .not_found = {}};
+
+  std::optional<TimeRange> not_found;
+  if (column_res->GetTimeRange().start > time_range.start) {
+    not_found = TimeRange{time_range.start, column_res->GetTimeRange().start};
+  }
+  return {.found = column_res, .not_found = not_found};
 }
 
 Columns Memtable::ExtractColumns() {
@@ -73,8 +77,12 @@ Memtable::ReadResult Memtable::ReadRawValues(
   auto vals_column = std::static_pointer_cast<RawValuesColumn>(*vals_it);
   auto column = std::make_shared<ReadRawColumn>(ts_column, vals_column);
   auto column_res = column->Read(time_range);
-  // TODO: check if part of time range was not found
-  return {.found = column_res, .not_found = {}};
+
+  std::optional<TimeRange> not_found;
+  if (column_res->GetTimeRange().start > time_range.start) {
+    not_found = TimeRange{time_range.start, column_res->GetTimeRange().start};
+  }
+  return {.found = column_res, .not_found = not_found};
 }
 
 }  // namespace tskv

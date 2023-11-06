@@ -89,10 +89,13 @@ class IColumn {
 
 class IReadColumn : public IColumn {
  public:
-  virtual Column Read(const TimeRange& time_range) const = 0;
+  virtual std::shared_ptr<IReadColumn> Read(
+      const TimeRange& time_range) const = 0;
+  virtual TimeRange GetTimeRange() const = 0;
 };
 
 using Column = std::shared_ptr<IColumn>;
+using ReadColumn = std::shared_ptr<IReadColumn>;
 using Columns = std::vector<Column>;
 
 class SumColumn : public IReadColumn {
@@ -103,9 +106,10 @@ class SumColumn : public IReadColumn {
   ColumnType GetType() const override;
   CompressedBytes ToBytes() const override;
   void Merge(Column column) override;
-  Column Read(const TimeRange& time_range) const override;
+  ReadColumn Read(const TimeRange& time_range) const override;
   void Write(const InputTimeSeries& time_series) override;
   std::vector<Value> GetValues() const override;
+  TimeRange GetTimeRange() const override;
 
  private:
   std::optional<size_t> GetBucketIdx(TimePoint timestamp) const;
@@ -155,9 +159,10 @@ class ReadRawColumn : public IReadColumn {
   ColumnType GetType() const override;
   CompressedBytes ToBytes() const override;
   void Merge(Column column) override;
-  Column Read(const TimeRange& time_range) const override;
+  ReadColumn Read(const TimeRange& time_range) const override;
   void Write(const InputTimeSeries& time_series) override;
   std::vector<Value> GetValues() const override;
+  TimeRange GetTimeRange() const override;
 
   std::vector<TimePoint> GetTimestamps() const;
 

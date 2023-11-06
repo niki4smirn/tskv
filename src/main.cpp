@@ -29,8 +29,12 @@ int main() {
                 << read_raw_col->GetValues()[i] << std::endl;
     }
   } else {
-    for (auto val : column->GetValues()) {
-      std::cout << val << " ";
+    auto read_col = std::dynamic_pointer_cast<tskv::IReadColumn>(column);
+    auto time_range = read_col->GetTimeRange();
+    auto values = read_col->GetValues();
+    auto step = (time_range.end - time_range.start) / values.size();
+    for (size_t i = 0; i < values.size(); ++i) {
+      std::cout << time_range.start + i * step << " " << values[i] << std::endl;
     }
   }
   return 0;
