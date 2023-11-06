@@ -28,7 +28,7 @@ void Memtable::Write(const InputTimeSeries& time_series) {
   size_ += time_series.size();
 }
 
-Memtable::ReadResult Memtable::Read(const std::vector<TimeRange>& time_ranges,
+Memtable::ReadResult Memtable::Read(const TimeRange& time_range,
                                     StoredAggregationType aggregation_type) {
   auto column_type = static_cast<ColumnType>(aggregation_type);
   auto it = std::find_if(columns_.begin(), columns_.end(),
@@ -36,20 +36,13 @@ Memtable::ReadResult Memtable::Read(const std::vector<TimeRange>& time_ranges,
                            return column->GetType() == column_type;
                          });
   if (it == columns_.end()) {
-    return ReadRawValues(time_ranges, aggregation_type);
+    return ReadRawValues(time_range, aggregation_type);
   }
 
-  Memtable::ReadResult result;
-  for (const auto& time_range : time_ranges) {
-    auto column = std::static_pointer_cast<IReadColumn>(*it);
-    auto column_res = column->Read(time_range);
-    if (column_res) {
-      result.found.push_back(std::move(column_res));
-    } else {
-      result.not_found.push_back(time_range);
-    }
-  }
-  return result;
+  auto column = std::static_pointer_cast<IReadColumn>(*it);
+  auto column_res = column->Read(time_range);
+  // TODO: check if part of time range was not found
+  return {.found = column_res, .not_found = {}};
 }
 
 Columns Memtable::ExtractColumns() {
@@ -63,34 +56,25 @@ bool Memtable::NeedFlush() const {
 }
 
 Memtable::ReadResult Memtable::ReadRawValues(
-    const std::vector<TimeRange>& time_ranges,
-    StoredAggregationType aggregation_type) {
+    const TimeRange& time_range, StoredAggregationType aggregation_type) {
   auto ts_it = std::ranges::find(columns_, ColumnType::kRawTimestamps,
                                  &IColumn::GetType);
   if (ts_it == columns_.end()) {
-    return {.not_found = time_ranges};
+    return {.not_found = time_range};
   }
   auto vals_it =
       std::ranges::find(columns_, ColumnType::kRawValues, &IColumn::GetType);
   if (vals_it == columns_.end()) {
-    return {.not_found = time_ranges};
+    return {.not_found = time_range};
   }
   Memtable::ReadResult result;
-  for (const auto& time_range : time_ranges) {
-    auto ts_column = std::static_pointer_cast<RawTimestampsColumn>(*ts_it);
-    auto vals_column = std::static_pointer_cast<RawValuesColumn>(*vals_it);
-    auto ts_values = ts_column->GetValues();
-    auto column = std::make_shared<ReadRawColumn>(
-        std::vector<TimePoint>(ts_values.begin(), ts_values.end()),
-        vals_column->GetValues());
-    auto column_res = column->Read(time_range);
-    if (column_res) {
-      result.found.push_back(std::move(column_res));
-    } else {
-      result.not_found.push_back(time_range);
-    }
-  }
-  return result;
+
+  auto ts_column = std::static_pointer_cast<RawTimestampsColumn>(*ts_it);
+  auto vals_column = std::static_pointer_cast<RawValuesColumn>(*vals_it);
+  auto column = std::make_shared<ReadRawColumn>(ts_column, vals_column);
+  auto column_res = column->Read(time_range);
+  // TODO: check if part of time range was not found
+  return {.found = column_res, .not_found = {}};
 }
 
 }  // namespace tskv

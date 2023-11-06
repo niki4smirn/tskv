@@ -15,10 +15,10 @@ void PersistentStorageManager::Write(const Columns& columns) {
   }
 }
 
-Columns PersistentStorageManager::Read(
-    const std::vector<TimeRange>& time_ranges,
+Column PersistentStorageManager::Read(
+    const TimeRange& time_range,
     StoredAggregationType aggregation_type) {
-  return levels_[0].Read(time_ranges, aggregation_type);
+  return levels_[0].Read(time_range, aggregation_type);
 }
 
 }  // namespace tskv

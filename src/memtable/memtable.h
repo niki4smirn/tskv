@@ -22,20 +22,21 @@ class Memtable {
   };
 
   struct ReadResult {
-    Columns found;
-    std::vector<TimeRange> not_found;
+    Column found;
+    // only <= 1 time range, because memtable stores data suffix
+    std::optional<TimeRange> not_found;
   };
 
  public:
   Memtable(const Options& options, const MetricOptions& metric_options);
   void Write(const InputTimeSeries& time_series);
-  ReadResult Read(const std::vector<TimeRange>& time_ranges,
+  ReadResult Read(const TimeRange& time_range,
                   StoredAggregationType aggregation_type);
   Columns ExtractColumns();
   bool NeedFlush() const;
 
  private:
-  ReadResult ReadRawValues(const std::vector<TimeRange>& time_ranges,
+  ReadResult ReadRawValues(const TimeRange& time_range,
                            StoredAggregationType aggregation_type);
 
   Columns columns_;

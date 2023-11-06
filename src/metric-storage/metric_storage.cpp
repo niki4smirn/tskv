@@ -15,33 +15,24 @@ MetricStorage::MetricStorage(const Options& options)
 
 Column MetricStorage::Read(const TimeRange& time_range,
                            AggregationType aggregation_type) {
-  // TODO: use cache
   if (aggregation_type == AggregationType::kAvg) {
     // TODO: implement
     assert(false);
   }
-  auto stored_aggregation = ToStoredAggregationType(aggregation_type);
-  auto [found, not_found] = memtable_.Read({time_range}, stored_aggregation);
-  auto columns =
-      persistent_storage_manager_.Read(not_found, stored_aggregation);
 
-  // merge iterates over all columns in chronological order
-  Column result;
-  if (!columns.empty()) {
-    result = columns.front();
-    for (auto column : columns | std::views::drop(1)) {
-      result->Merge(column);
-    }
+  auto stored_aggregation = ToStoredAggregationType(aggregation_type);
+  auto [found, not_found] = memtable_.Read(time_range, stored_aggregation);
+
+  Column column;
+  if (not_found) {
+    column = persistent_storage_manager_.Read(*not_found, stored_aggregation);
   }
-  if (!found.empty()) {
-    int to_drop = 0;
-    if (!result) {
-      result = found.front();
-      to_drop = 1;
-    }
-    for (const auto& column : found | std::views::drop(to_drop)) {
-      result->Merge(column);
-    }
+
+  Column result = column;
+  if (!result) {
+    result = found;
+  } else {
+    result->Merge(found);
   }
   return result;
 }

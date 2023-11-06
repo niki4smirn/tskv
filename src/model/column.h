@@ -150,8 +150,8 @@ class RawValuesColumn : public IColumn {
 class ReadRawColumn : public IReadColumn {
  public:
   ReadRawColumn() = default;
-  ReadRawColumn(const std::vector<TimePoint>& timestamps,
-                const std::vector<Value>& values);
+  ReadRawColumn(std::shared_ptr<RawTimestampsColumn> timestamps_column,
+                std::shared_ptr<RawValuesColumn> values_column);
   ColumnType GetType() const override;
   CompressedBytes ToBytes() const override;
   void Merge(Column column) override;
@@ -162,8 +162,8 @@ class ReadRawColumn : public IReadColumn {
   std::vector<TimePoint> GetTimestamps() const;
 
  private:
-  std::vector<TimePoint> timestamps_;
-  std::vector<Value> values_;
+  std::shared_ptr<RawTimestampsColumn> timestamps_column_;
+  std::shared_ptr<RawValuesColumn> values_column_;
 };
 
 Column CreateColumn(ColumnType column_type, size_t bucket_interval);

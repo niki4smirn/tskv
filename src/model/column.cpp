@@ -31,6 +31,9 @@ CompressedBytes SumColumn::ToBytes() const {
 
 // column interval should start further than this->time_range.start
 void SumColumn::Merge(Column column) {
+  if (!column) {
+    return;
+  }
   auto sum_column = std::dynamic_pointer_cast<SumColumn>(column);
   if (!sum_column) {
     throw std::runtime_error("Can't merge columns of different types");
@@ -135,6 +138,9 @@ CompressedBytes RawTimestampsColumn::ToBytes() const {
 }
 
 void RawTimestampsColumn::Merge(Column column) {
+  if (!column) {
+    return;
+  }
   auto raw_timestamps_column =
       std::dynamic_pointer_cast<RawTimestampsColumn>(column);
   if (!raw_timestamps_column) {
@@ -184,6 +190,9 @@ CompressedBytes RawValuesColumn::ToBytes() const {
 }
 
 void RawValuesColumn::Merge(Column column) {
+  if (!column) {
+    return;
+  }
   auto raw_values_column = std::dynamic_pointer_cast<RawValuesColumn>(column);
   if (!raw_values_column) {
     throw std::runtime_error("Can't merge columns of different types");
@@ -214,9 +223,10 @@ std::vector<Value> RawValuesColumn::GetValues() const {
   return values_;
 }
 
-ReadRawColumn::ReadRawColumn(const std::vector<TimePoint>& timestamps,
-                             const std::vector<Value>& values)
-    : timestamps_(timestamps), values_(values) {}
+ReadRawColumn::ReadRawColumn(
+    std::shared_ptr<RawTimestampsColumn> timestamps_column,
+    std::shared_ptr<RawValuesColumn> values_column)
+    : timestamps_column_(timestamps_column), values_column_(values_column) {}
 
 ColumnType ReadRawColumn::GetType() const {
   return ColumnType::kRawRead;
@@ -227,17 +237,31 @@ CompressedBytes ReadRawColumn::ToBytes() const {
 }
 
 void ReadRawColumn::Merge(Column column) {
-  assert(false);
+  if (!column) {
+    return;
+  }
+  auto read_raw_column = std::dynamic_pointer_cast<ReadRawColumn>(column);
+  if (!read_raw_column) {
+    throw std::runtime_error("Can't merge columns of different types");
+  }
+  if (this == read_raw_column.get()) {
+    return;
+  }
+  timestamps_column_->Merge(read_raw_column->timestamps_column_);
+  values_column_->Merge(read_raw_column->values_column_);
 }
 
 Column ReadRawColumn::Read(const TimeRange& time_range) const {
-  auto start = std::lower_bound(timestamps_.begin(), timestamps_.end(),
-                                time_range.start);
-  auto end = std::upper_bound(start, timestamps_.end(), time_range.end);
+  auto& timestamps = timestamps_column_->timestamps_;
+  auto& values = values_column_->values_;
+  auto start =
+      std::lower_bound(timestamps.begin(), timestamps.end(), time_range.start);
+  auto end = std::upper_bound(start, timestamps.end(), time_range.end);
   return std::make_shared<ReadRawColumn>(
-      std::vector<TimePoint>(start, end),
-      std::vector<Value>(values_.begin() + (start - timestamps_.begin()),
-                         values_.begin() + (end - timestamps_.begin())));
+      std::make_shared<RawTimestampsColumn>(std::vector<TimePoint>(start, end)),
+      std::make_shared<RawValuesColumn>(
+          std::vector<Value>(values.begin() + (start - timestamps.begin()),
+                             values.begin() + (end - timestamps.begin()))));
 }
 
 void ReadRawColumn::Write(const InputTimeSeries& time_series) {
@@ -245,11 +269,12 @@ void ReadRawColumn::Write(const InputTimeSeries& time_series) {
 }
 
 std::vector<Value> ReadRawColumn::GetValues() const {
-  return values_;
+  return values_column_->GetValues();
 }
 
 std::vector<TimePoint> ReadRawColumn::GetTimestamps() const {
-  return timestamps_;
+  auto timestamps = timestamps_column_->GetValues();
+  return std::vector<TimePoint>(timestamps.begin(), timestamps.end());
 }
 
 Column CreateRawColumn(ColumnType column_type) {
