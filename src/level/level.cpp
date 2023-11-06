@@ -2,13 +2,14 @@
 #include <algorithm>
 #include <cassert>
 #include <memory>
+#include <utility>
 #include "model/column.h"
 #include "persistent-storage/persistent_storage.h"
 
 namespace tskv {
 
 Level::Level(std::shared_ptr<IPersistentStorage> storage) {
-  storage_ = storage;
+  storage_ = std::move(storage);
 }
 
 Column Level::Read(const TimeRange& time_range,

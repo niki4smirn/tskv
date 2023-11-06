@@ -6,7 +6,7 @@ namespace tskv {
 PersistentStorageManager::PersistentStorageManager(
     std::shared_ptr<IPersistentStorage> persistent_storage) {
   // for now just one level
-  levels_.emplace_back(persistent_storage);
+  levels_.emplace_back(std::move(persistent_storage));
 }
 
 void PersistentStorageManager::Write(const Columns& columns) {

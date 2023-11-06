@@ -10,9 +10,8 @@ int main() {
   tskv::Storage storage;
   auto metric_id = storage.InitMetric(tskv::MetricStorage::Options{
       tskv::MetricOptions{
-          {tskv::ColumnType::kRawTimestamps, tskv::ColumnType::kRawValues}},
-          // {tskv::ColumnType::kSum}},
-      tskv::Cache::Options{.capacity = 1000},
+          // {tskv::ColumnType::kRawTimestamps, tskv::ColumnType::kRawValues}},
+          {tskv::ColumnType::kSum}},
       tskv::Memtable::Options{.bucket_inteval = 1, .capacity = 5},
       std::make_shared<tskv::DiskStorage>(
           tskv::DiskStorage::Options{"./tmp/tskv", true})});

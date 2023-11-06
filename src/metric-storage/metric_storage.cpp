@@ -9,8 +9,7 @@
 namespace tskv {
 
 MetricStorage::MetricStorage(const Options& options)
-    : cache_(options.cache_options),
-      memtable_(options.memtable_options, options.metric_options),
+    : memtable_(options.memtable_options, options.metric_options),
       persistent_storage_manager_(options.persistent_storage) {}
 
 Column MetricStorage::Read(const TimeRange& time_range,

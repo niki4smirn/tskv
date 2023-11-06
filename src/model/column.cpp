@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstring>
 #include <ranges>
+#include <utility>
 
 namespace tskv {
 
@@ -177,7 +178,7 @@ void RawTimestampsColumn::Write(const InputTimeSeries& time_series) {
 }
 
 std::vector<Value> RawTimestampsColumn::GetValues() const {
-  return std::vector<Value>(timestamps_.begin(), timestamps_.end());
+  return {timestamps_.begin(), timestamps_.end()};
 }
 
 RawValuesColumn::RawValuesColumn(const std::vector<Value>& values)
@@ -230,7 +231,7 @@ std::vector<Value> RawValuesColumn::GetValues() const {
 ReadRawColumn::ReadRawColumn(
     std::shared_ptr<RawTimestampsColumn> timestamps_column,
     std::shared_ptr<RawValuesColumn> values_column)
-    : timestamps_column_(timestamps_column), values_column_(values_column) {}
+    : timestamps_column_(std::move(timestamps_column)), values_column_(std::move(values_column)) {}
 
 ColumnType ReadRawColumn::GetType() const {
   return ColumnType::kRawRead;
@@ -283,7 +284,7 @@ TimeRange ReadRawColumn::GetTimeRange() const {
 
 std::vector<TimePoint> ReadRawColumn::GetTimestamps() const {
   auto timestamps = timestamps_column_->GetValues();
-  return std::vector<TimePoint>(timestamps.begin(), timestamps.end());
+  return {timestamps.begin(), timestamps.end()};
 }
 
 Column CreateRawColumn(ColumnType column_type) {
@@ -334,4 +335,5 @@ Column FromBytes(const CompressedBytes& bytes, ColumnType column_type) {
   }
 }
 
+CompressedBytesReader::CompressedBytesReader(const CompressedBytes& bytes) : bytes_(bytes) {}
 }  // namespace tskv

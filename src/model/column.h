@@ -26,7 +26,7 @@ void Append(CompressedBytes& bytes, T* value, size_t size) {
 }
 
 struct CompressedBytesReader {
-  CompressedBytesReader(const CompressedBytes& bytes) : bytes_(bytes) {}
+  explicit CompressedBytesReader(const CompressedBytes& bytes);
 
   template <typename T>
   T Read() {
@@ -100,7 +100,7 @@ using Columns = std::vector<Column>;
 
 class SumColumn : public IReadColumn {
  public:
-  SumColumn(size_t bucket_interval);
+  explicit SumColumn(size_t bucket_interval);
   SumColumn(const std::vector<double>& buckets, const TimeRange& time_range,
             size_t bucket_interval);
   ColumnType GetType() const override;
@@ -116,7 +116,7 @@ class SumColumn : public IReadColumn {
 
  private:
   std::vector<Value> buckets_;
-  TimeRange time_range_;
+  TimeRange time_range_{};
   size_t bucket_interval_;
 };
 
@@ -124,7 +124,7 @@ class RawTimestampsColumn : public IColumn {
  public:
   friend class ReadRawColumn;
   RawTimestampsColumn() = default;
-  RawTimestampsColumn(const std::vector<TimePoint>& timestamps);
+  explicit RawTimestampsColumn(const std::vector<TimePoint>& timestamps);
   ColumnType GetType() const override;
   CompressedBytes ToBytes() const override;
   void Merge(Column column) override;
@@ -140,7 +140,7 @@ class RawValuesColumn : public IColumn {
  public:
   friend class ReadRawColumn;
   RawValuesColumn() = default;
-  RawValuesColumn(const std::vector<Value>& values);
+  explicit RawValuesColumn(const std::vector<Value>& values);
   ColumnType GetType() const override;
   CompressedBytes ToBytes() const override;
   void Merge(Column column) override;

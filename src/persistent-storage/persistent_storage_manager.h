@@ -12,7 +12,7 @@ namespace tskv {
 
 class PersistentStorageManager {
  public:
-  PersistentStorageManager(std::shared_ptr<IPersistentStorage> storage);
+  explicit PersistentStorageManager(std::shared_ptr<IPersistentStorage> storage);
   void Write(const Columns& columns);
 
   Column Read(const TimeRange& time_range,

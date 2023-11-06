@@ -8,7 +8,7 @@ namespace tskv {
 
 class Level {
  public:
-  Level(std::shared_ptr<IPersistentStorage> storage);
+  explicit Level(std::shared_ptr<IPersistentStorage> storage);
   Column Read(const TimeRange& time_range,
               StoredAggregationType aggregation_type);
   void Write(const Column& column);

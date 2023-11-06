@@ -12,7 +12,7 @@ class DiskStorage : public IPersistentStorage {
   };
 
  public:
-  DiskStorage(const Options& options);
+  explicit DiskStorage(const Options& options);
   Metadata GetMetadata() const override;
   PageId CreatePage() override;
   CompressedBytes Read(const PageId& page_id) override;

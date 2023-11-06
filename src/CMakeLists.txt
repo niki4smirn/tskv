@@ -16,7 +16,6 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${Protobuf_INCLUDE_DIRS})
 
 add_executable(ts-kv-blob
-        cache/cache.cpp
         level/level.cpp
         main.cpp
         memtable/memtable.cpp
