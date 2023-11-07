@@ -8,11 +8,11 @@
 
 namespace tskv {
 
-SumColumn::SumColumn(size_t bucket_interval)
+SumColumn::SumColumn(Duration bucket_interval)
     : bucket_interval_(bucket_interval) {}
 
 SumColumn::SumColumn(const std::vector<double>& buckets,
-                     const TimeRange& time_range, size_t bucket_interval)
+                     const TimeRange& time_range, Duration bucket_interval)
     : buckets_(buckets),
       time_range_(time_range),
       bucket_interval_(bucket_interval) {}
@@ -231,14 +231,11 @@ std::vector<Value> RawValuesColumn::GetValues() const {
 ReadRawColumn::ReadRawColumn(
     std::shared_ptr<RawTimestampsColumn> timestamps_column,
     std::shared_ptr<RawValuesColumn> values_column)
-    : timestamps_column_(std::move(timestamps_column)), values_column_(std::move(values_column)) {}
+    : timestamps_column_(std::move(timestamps_column)),
+      values_column_(std::move(values_column)) {}
 
 ColumnType ReadRawColumn::GetType() const {
   return ColumnType::kRawRead;
-}
-
-CompressedBytes ReadRawColumn::ToBytes() const {
-  assert(false);
 }
 
 void ReadRawColumn::Merge(Column column) {
@@ -270,7 +267,8 @@ ReadColumn ReadRawColumn::Read(const TimeRange& time_range) const {
 }
 
 void ReadRawColumn::Write(const InputTimeSeries& time_series) {
-  assert(false);
+  timestamps_column_->Write(time_series);
+  values_column_->Write(time_series);
 }
 
 std::vector<Value> ReadRawColumn::GetValues() const {
@@ -298,10 +296,16 @@ Column CreateRawColumn(ColumnType column_type) {
   }
 }
 
-Column CreateColumn(ColumnType column_type, size_t bucket_interval) {
+Column CreateColumn(ColumnType column_type, Duration bucket_interval) {
   switch (column_type) {
-    case ColumnType::kSum:
-      return std::make_shared<SumColumn>(bucket_interval);
+    case ColumnType::kSum: {
+      auto sum_column = std::make_shared<SumColumn>(bucket_interval);
+      // some strange things here, because in cpp we don't have such thing as
+      // interface, so in case of diamond interface inheritance we need to
+      // explicitly cast to the base class
+      auto read_column = std::static_pointer_cast<IReadColumn>(sum_column);
+      return std::static_pointer_cast<IColumn>(read_column);
+    }
     default:
       throw std::runtime_error("Unsupported column type");
   }
@@ -327,13 +331,17 @@ Column FromBytes(const CompressedBytes& bytes, ColumnType column_type) {
       auto start = reader.Read<TimePoint>();
       auto end = reader.Read<TimePoint>();
       auto buckets = reader.ReadAll<Value>();
-      return std::make_shared<SumColumn>(buckets, TimeRange{start, end},
-                                         bucket_interval);
+      auto sum_column = std::make_shared<SumColumn>(
+          buckets, TimeRange{start, end}, bucket_interval);
+      auto read_column = std::static_pointer_cast<IReadColumn>(sum_column);
+      return std::static_pointer_cast<IColumn>(read_column);
     }
     default:
       throw std::runtime_error("Unsupported column type");
   }
 }
 
-CompressedBytesReader::CompressedBytesReader(const CompressedBytes& bytes) : bytes_(bytes) {}
+CompressedBytesReader::CompressedBytesReader(const CompressedBytes& bytes)
+    : bytes_(bytes) {}
+
 }  // namespace tskv

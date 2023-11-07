@@ -1,5 +1,6 @@
 #include "model/column.h"
 #include "persistent-storage/disk_storage.h"
+#include "persistent-storage/persistent_storage_manager.h"
 #include "storage/storage.h"
 
 #include <iostream>
@@ -10,11 +11,17 @@ int main() {
   tskv::Storage storage;
   auto metric_id = storage.InitMetric(tskv::MetricStorage::Options{
       tskv::MetricOptions{
-          // {tskv::ColumnType::kRawTimestamps, tskv::ColumnType::kRawValues}},
-          {tskv::ColumnType::kSum}},
+          {tskv::ColumnType::kRawTimestamps, tskv::ColumnType::kRawValues}},
+          // {tskv::ColumnType::kSum}},
       tskv::Memtable::Options{.bucket_inteval = 1, .capacity = 5},
+      tskv::PersistentStorageManager::Options{
+          .levels =
+              {
+                  {.bucket_interval = 1, .level_duration = 3},
+                  {.bucket_interval = 2, .level_duration = 10},
+              }},
       std::make_shared<tskv::DiskStorage>(
-          tskv::DiskStorage::Options{"./tmp/tskv", true})});
+          tskv::DiskStorage::Options{"./tmp/tskv"})});
   storage.Write(metric_id,
                 tskv::InputTimeSeries{
                     {1, 1}, {2, 2}, {2, 1}, {3, 1}, {3, 10}, {4, 2}, {4, -1}});

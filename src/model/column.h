@@ -80,7 +80,6 @@ class IColumn {
 
  public:
   virtual ColumnType GetType() const = 0;
-  virtual CompressedBytes ToBytes() const = 0;
   virtual void Merge(Column column) = 0;
   virtual void Write(const InputTimeSeries& time_series) = 0;
   virtual std::vector<Value> GetValues() const = 0;
@@ -94,15 +93,23 @@ class IReadColumn : public IColumn {
   virtual TimeRange GetTimeRange() const = 0;
 };
 
+class ISerializableColumn : public IColumn {
+ public:
+  virtual CompressedBytes ToBytes() const = 0;
+};
+
 using Column = std::shared_ptr<IColumn>;
 using ReadColumn = std::shared_ptr<IReadColumn>;
+using SerializableColumn = std::shared_ptr<ISerializableColumn>;
 using Columns = std::vector<Column>;
+using ReadColumns = std::vector<ReadColumn>;
+using SerializableColumns = std::vector<SerializableColumn>;
 
-class SumColumn : public IReadColumn {
+class SumColumn : public IReadColumn, public ISerializableColumn {
  public:
-  explicit SumColumn(size_t bucket_interval);
+  explicit SumColumn(Duration bucket_interval);
   SumColumn(const std::vector<double>& buckets, const TimeRange& time_range,
-            size_t bucket_interval);
+            Duration bucket_interval);
   ColumnType GetType() const override;
   CompressedBytes ToBytes() const override;
   void Merge(Column column) override;
@@ -117,10 +124,10 @@ class SumColumn : public IReadColumn {
  private:
   std::vector<Value> buckets_;
   TimeRange time_range_{};
-  size_t bucket_interval_;
+  Duration bucket_interval_;
 };
 
-class RawTimestampsColumn : public IColumn {
+class RawTimestampsColumn : public ISerializableColumn {
  public:
   friend class ReadRawColumn;
   RawTimestampsColumn() = default;
@@ -136,7 +143,7 @@ class RawTimestampsColumn : public IColumn {
   std::vector<TimePoint> timestamps_;
 };
 
-class RawValuesColumn : public IColumn {
+class RawValuesColumn : public ISerializableColumn {
  public:
   friend class ReadRawColumn;
   RawValuesColumn() = default;
@@ -157,7 +164,6 @@ class ReadRawColumn : public IReadColumn {
   ReadRawColumn(std::shared_ptr<RawTimestampsColumn> timestamps_column,
                 std::shared_ptr<RawValuesColumn> values_column);
   ColumnType GetType() const override;
-  CompressedBytes ToBytes() const override;
   void Merge(Column column) override;
   ReadColumn Read(const TimeRange& time_range) const override;
   void Write(const InputTimeSeries& time_series) override;
@@ -171,7 +177,7 @@ class ReadRawColumn : public IReadColumn {
   std::shared_ptr<RawValuesColumn> values_column_;
 };
 
-Column CreateColumn(ColumnType column_type, size_t bucket_interval);
+Column CreateColumn(ColumnType column_type, Duration bucket_interval);
 
 Column CreateRawColumn(ColumnType column_type);
 

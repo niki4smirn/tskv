@@ -1,5 +1,7 @@
 #pragma once
 
+#include <filesystem>
+
 #include "persistent_storage.h"
 
 namespace tskv {
@@ -8,7 +10,6 @@ class DiskStorage : public IPersistentStorage {
  public:
   struct Options {
     std::string path;
-    bool create_if_not_exists = false;
   };
 
  public:
@@ -20,7 +21,7 @@ class DiskStorage : public IPersistentStorage {
   void DeletePage(const PageId& page_id) override;
 
  private:
-  std::string path_;
+  std::filesystem::path path_;
   PageId next_page_id_{0};
 };
 

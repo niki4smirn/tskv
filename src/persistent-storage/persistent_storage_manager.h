@@ -12,8 +12,19 @@ namespace tskv {
 
 class PersistentStorageManager {
  public:
-  explicit PersistentStorageManager(std::shared_ptr<IPersistentStorage> storage);
-  void Write(const Columns& columns);
+  struct LevelOptions {
+    Duration bucket_interval;
+    Duration level_duration;
+  };
+
+  struct Options {
+    std::vector<LevelOptions> levels;
+  };
+
+ public:
+  PersistentStorageManager(const Options& options,
+                           std::shared_ptr<IPersistentStorage> storage);
+  void Write(const SerializableColumns& columns);
 
   Column Read(const TimeRange& time_range,
               StoredAggregationType aggregation_type);

@@ -4,20 +4,22 @@
 namespace tskv {
 
 PersistentStorageManager::PersistentStorageManager(
+    const Options& options,
     std::shared_ptr<IPersistentStorage> persistent_storage) {
-  // for now just one level
-  levels_.emplace_back(std::move(persistent_storage));
-}
-
-void PersistentStorageManager::Write(const Columns& columns) {
-  for (const auto& column : columns) {
-    levels_[0].Write(column);
+  for (const auto& _ : options.levels) {
+    levels_.emplace_back(persistent_storage);
   }
 }
 
-Column PersistentStorageManager::Read(
-    const TimeRange& time_range,
-    StoredAggregationType aggregation_type) {
+void PersistentStorageManager::Write(const SerializableColumns& columns) {
+  for (const auto& column : columns) {
+    levels_[0].Write(column);
+  }
+  // TODO: write to other levels
+}
+
+Column PersistentStorageManager::Read(const TimeRange& time_range,
+                                      StoredAggregationType aggregation_type) {
   return levels_[0].Read(time_range, aggregation_type);
 }
 

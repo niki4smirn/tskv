@@ -46,7 +46,7 @@ Column Level::ReadRawValues(const TimeRange& time_range,
   return read_column->Read(time_range);
 }
 
-void Level::Write(const Column& column) {
+void Level::Write(const SerializableColumn& column) {
   auto column_type = column->GetType();
   auto it = std::ranges::find(page_ids_, column_type,
                               &std::pair<ColumnType, PageId>::first);

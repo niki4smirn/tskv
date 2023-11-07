@@ -9,7 +9,6 @@ namespace tskv {
 
 struct MetricOptions {
   std::vector<ColumnType> column_types;
-  // move bucket interval here
 };
 
 class MetricStorage {
@@ -18,6 +17,7 @@ class MetricStorage {
     MetricOptions metric_options;
     Memtable::Options memtable_options;
 
+    PersistentStorageManager::Options persistent_storage_manager_options;
     std::shared_ptr<IPersistentStorage> persistent_storage;
   };
 
@@ -29,7 +29,6 @@ class MetricStorage {
  private:
   Memtable memtable_;
   PersistentStorageManager persistent_storage_manager_;
-  // WAL wal_;
 };
 
 }  // namespace tskv
