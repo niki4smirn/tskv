@@ -11,8 +11,8 @@ int main() {
   tskv::Storage storage;
   auto metric_id = storage.InitMetric(tskv::MetricStorage::Options{
       tskv::MetricOptions{
-          // {tskv::ColumnType::kRawTimestamps, tskv::ColumnType::kRawValues}},
-          {tskv::ColumnType::kSum}},
+          {tskv::ColumnType::kRawTimestamps, tskv::ColumnType::kRawValues}},
+          // {tskv::ColumnType::kSum}},
       tskv::Memtable::Options{.bucket_inteval = 1, .capacity = 2},
       tskv::PersistentStorageManager::Options{
           .levels =
@@ -27,8 +27,6 @@ int main() {
   storage.Write(metric_id,
                 tskv::InputTimeSeries{{3, 1}, {3, 10}, {4, 2}, {4, -1}});
 
-  // now for raw columns it reads incorrectly in first case
-  // [2, 3] instead of [2, 3)
   auto time_ranges = {tskv::TimeRange{2, 3}, tskv::TimeRange{1, 5}};
   for (auto time_range : time_ranges) {
     auto column =

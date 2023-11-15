@@ -292,7 +292,7 @@ ReadColumn ReadRawColumn::Read(const TimeRange& time_range) const {
   auto& values = values_column_->values_;
   auto start =
       std::lower_bound(timestamps.begin(), timestamps.end(), time_range.start);
-  auto end = std::upper_bound(start, timestamps.end(), time_range.end);
+  auto end = std::upper_bound(start, timestamps.end(), time_range.end - 1);
   if (start == timestamps.end()) {
     return std::shared_ptr<ReadRawColumn>(nullptr);
   }
