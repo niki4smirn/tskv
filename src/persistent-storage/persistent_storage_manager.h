@@ -30,7 +30,12 @@ class PersistentStorageManager {
               StoredAggregationType aggregation_type);
 
  private:
+  void MergeLevels();
+
+ private:
   std::vector<Level> levels_;
+  std::vector<LevelOptions> level_options_;
+  std::vector<TimePoint> last_level_merges_;
 };
 
 }  // namespace tskv

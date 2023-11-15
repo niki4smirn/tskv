@@ -1,8 +1,10 @@
 #include "level.h"
+
 #include <algorithm>
 #include <cassert>
 #include <memory>
 #include <utility>
+
 #include "model/column.h"
 #include "persistent-storage/persistent_storage.h"
 
@@ -59,6 +61,12 @@ void Level::Write(const SerializableColumn& column) {
     page_id = it->second;
   }
   storage_->Write(page_id, column->ToBytes());
+}
+
+void Level::MovePagesFrom(Level& other) {
+  page_ids_.insert(page_ids_.end(), other.page_ids_.begin(),
+                   other.page_ids_.end());
+  other.page_ids_.clear();
 }
 
 }  // namespace tskv

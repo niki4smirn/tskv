@@ -83,6 +83,9 @@ class IColumn {
   virtual void Merge(Column column) = 0;
   virtual void Write(const InputTimeSeries& time_series) = 0;
   virtual std::vector<Value> GetValues() const = 0;
+  // extracts data from column and clears it
+  // returns new column with extracted data
+  virtual Column Extract() = 0;
   virtual ~IColumn() = default;
 };
 
@@ -108,7 +111,7 @@ using SerializableColumns = std::vector<SerializableColumn>;
 class SumColumn : public IReadColumn, public ISerializableColumn {
  public:
   explicit SumColumn(Duration bucket_interval);
-  SumColumn(const std::vector<double>& buckets, const TimeRange& time_range,
+  SumColumn(std::vector<double> buckets, const TimeRange& time_range,
             Duration bucket_interval);
   ColumnType GetType() const override;
   CompressedBytes ToBytes() const override;
@@ -117,6 +120,7 @@ class SumColumn : public IReadColumn, public ISerializableColumn {
   void Write(const InputTimeSeries& time_series) override;
   std::vector<Value> GetValues() const override;
   TimeRange GetTimeRange() const override;
+  Column Extract() override;
 
  private:
   std::optional<size_t> GetBucketIdx(TimePoint timestamp) const;
@@ -131,13 +135,14 @@ class RawTimestampsColumn : public ISerializableColumn {
  public:
   friend class ReadRawColumn;
   RawTimestampsColumn() = default;
-  explicit RawTimestampsColumn(const std::vector<TimePoint>& timestamps);
+  explicit RawTimestampsColumn(std::vector<TimePoint> timestamps);
   ColumnType GetType() const override;
   CompressedBytes ToBytes() const override;
   void Merge(Column column) override;
   void Write(const InputTimeSeries& time_series) override;
   // not the best way to return timestamps, but I didn't want to break the interface
   std::vector<Value> GetValues() const override;
+  Column Extract() override;
 
  private:
   std::vector<TimePoint> timestamps_;
@@ -147,12 +152,13 @@ class RawValuesColumn : public ISerializableColumn {
  public:
   friend class ReadRawColumn;
   RawValuesColumn() = default;
-  explicit RawValuesColumn(const std::vector<Value>& values);
+  explicit RawValuesColumn(std::vector<Value> values);
   ColumnType GetType() const override;
   CompressedBytes ToBytes() const override;
   void Merge(Column column) override;
   void Write(const InputTimeSeries& time_series) override;
   std::vector<Value> GetValues() const override;
+  Column Extract() override;
 
  private:
   std::vector<Value> values_;
@@ -169,6 +175,7 @@ class ReadRawColumn : public IReadColumn {
   void Write(const InputTimeSeries& time_series) override;
   std::vector<Value> GetValues() const override;
   TimeRange GetTimeRange() const override;
+  Column Extract() override;
 
   std::vector<TimePoint> GetTimestamps() const;
 

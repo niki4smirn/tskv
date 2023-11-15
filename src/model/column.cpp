@@ -11,9 +11,9 @@ namespace tskv {
 SumColumn::SumColumn(Duration bucket_interval)
     : bucket_interval_(bucket_interval) {}
 
-SumColumn::SumColumn(const std::vector<double>& buckets,
-                     const TimeRange& time_range, Duration bucket_interval)
-    : buckets_(buckets),
+SumColumn::SumColumn(std::vector<double> buckets, const TimeRange& time_range,
+                     Duration bucket_interval)
+    : buckets_(std::move(buckets)),
       time_range_(time_range),
       bucket_interval_(bucket_interval) {}
 
@@ -84,12 +84,19 @@ void SumColumn::Merge(Column column) {
 }
 
 ReadColumn SumColumn::Read(const TimeRange& time_range) const {
+  if (buckets_.empty()) {
+    return std::shared_ptr<SumColumn>(nullptr);
+  }
   auto start_bucket = *GetBucketIdx(time_range.start);
   auto end_bucket = *GetBucketIdx(time_range.end);
+  auto new_time_range = TimeRange{
+      std::max(time_range.start, time_range_.start),
+      std::min(time_range.end, time_range_.end),
+  };
   return std::make_shared<SumColumn>(
       std::vector<double>(buckets_.begin() + start_bucket,
                           buckets_.begin() + end_bucket),
-      time_range, bucket_interval_);
+      new_time_range, bucket_interval_);
 }
 
 void SumColumn::Write(const InputTimeSeries& time_series) {
@@ -113,8 +120,12 @@ void SumColumn::Write(const InputTimeSeries& time_series) {
 }
 
 std::optional<size_t> SumColumn::GetBucketIdx(TimePoint timestamp) const {
-  if (timestamp < time_range_.start || timestamp > time_range_.end) {
-    return {};
+  if (timestamp < time_range_.start) {
+    return 0;
+  }
+
+  if (timestamp >= time_range_.end) {
+    return buckets_.size();
   }
 
   return (timestamp - time_range_.start) / bucket_interval_;
@@ -128,9 +139,17 @@ TimeRange SumColumn::GetTimeRange() const {
   return time_range_;
 }
 
-RawTimestampsColumn::RawTimestampsColumn(
-    const std::vector<TimePoint>& timestamps)
-    : timestamps_(timestamps) {}
+Column SumColumn::Extract() {
+  auto sum_column = std::make_shared<SumColumn>(std::move(buckets_),
+                                                time_range_, bucket_interval_);
+  buckets_ = {};
+  time_range_ = {};
+  auto read_column = std::static_pointer_cast<IReadColumn>(sum_column);
+  return std::static_pointer_cast<IColumn>(read_column);
+}
+
+RawTimestampsColumn::RawTimestampsColumn(std::vector<TimePoint> timestamps)
+    : timestamps_(std::move(timestamps)) {}
 
 ColumnType RawTimestampsColumn::GetType() const {
   return ColumnType::kRawTimestamps;
@@ -181,8 +200,14 @@ std::vector<Value> RawTimestampsColumn::GetValues() const {
   return {timestamps_.begin(), timestamps_.end()};
 }
 
-RawValuesColumn::RawValuesColumn(const std::vector<Value>& values)
-    : values_(values) {}
+Column RawTimestampsColumn::Extract() {
+  auto timestamps = std::move(timestamps_);
+  timestamps_ = {};
+  return std::make_shared<RawTimestampsColumn>(timestamps);
+}
+
+RawValuesColumn::RawValuesColumn(std::vector<Value> values)
+    : values_(std::move(values)) {}
 
 ColumnType RawValuesColumn::GetType() const {
   return ColumnType::kRawValues;
@@ -228,6 +253,12 @@ std::vector<Value> RawValuesColumn::GetValues() const {
   return values_;
 }
 
+Column RawValuesColumn::Extract() {
+  auto values = std::move(values_);
+  values_ = {};
+  return std::make_shared<RawValuesColumn>(values);
+}
+
 ReadRawColumn::ReadRawColumn(
     std::shared_ptr<RawTimestampsColumn> timestamps_column,
     std::shared_ptr<RawValuesColumn> values_column)
@@ -254,11 +285,17 @@ void ReadRawColumn::Merge(Column column) {
 }
 
 ReadColumn ReadRawColumn::Read(const TimeRange& time_range) const {
+  if (!timestamps_column_ || !values_column_) {
+    return std::shared_ptr<ReadRawColumn>(nullptr);
+  }
   auto& timestamps = timestamps_column_->timestamps_;
   auto& values = values_column_->values_;
   auto start =
       std::lower_bound(timestamps.begin(), timestamps.end(), time_range.start);
   auto end = std::upper_bound(start, timestamps.end(), time_range.end);
+  if (start == timestamps.end()) {
+    return std::shared_ptr<ReadRawColumn>(nullptr);
+  }
   return std::make_shared<ReadRawColumn>(
       std::make_shared<RawTimestampsColumn>(std::vector<TimePoint>(start, end)),
       std::make_shared<RawValuesColumn>(
@@ -278,6 +315,16 @@ std::vector<Value> ReadRawColumn::GetValues() const {
 TimeRange ReadRawColumn::GetTimeRange() const {
   return TimeRange{timestamps_column_->timestamps_.front(),
                    timestamps_column_->timestamps_.back()};
+}
+
+Column ReadRawColumn::Extract() {
+  auto timestamps_column = std::static_pointer_cast<RawTimestampsColumn>(
+      timestamps_column_->Extract());
+  auto values_column =
+      std::static_pointer_cast<RawValuesColumn>(values_column_->Extract());
+  timestamps_column_.reset();
+  values_column_.reset();
+  return std::make_shared<ReadRawColumn>(timestamps_column, values_column);
 }
 
 std::vector<TimePoint> ReadRawColumn::GetTimestamps() const {

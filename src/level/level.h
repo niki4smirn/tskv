@@ -13,6 +13,7 @@ class Level {
   Column Read(const TimeRange& time_range,
               StoredAggregationType aggregation_type);
   void Write(const SerializableColumn& column);
+  void MovePagesFrom(Level& level);
 
  private:
   Column ReadRawValues(const TimeRange& time_range,

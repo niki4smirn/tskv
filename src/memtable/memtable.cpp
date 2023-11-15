@@ -42,7 +42,12 @@ Memtable::ReadResult Memtable::Read(const TimeRange& time_range,
   auto column = std::static_pointer_cast<IReadColumn>(*it);
   auto column_res = column->Read(time_range);
 
+  if (!column_res) {
+    return {.not_found = time_range};
+  }
+
   std::optional<TimeRange> not_found;
+
   if (column_res->GetTimeRange().start > time_range.start) {
     not_found = TimeRange{time_range.start, column_res->GetTimeRange().start};
   }
@@ -50,8 +55,10 @@ Memtable::ReadResult Memtable::Read(const TimeRange& time_range,
 }
 
 Columns Memtable::ExtractColumns() {
-  auto res = std::move(columns_);
-  columns_ = {};
+  Columns res;
+  for (auto& column : columns_) {
+    res.push_back(column->Extract());
+  }
   return res;
 }
 
@@ -77,6 +84,10 @@ Memtable::ReadResult Memtable::ReadRawValues(
   auto vals_column = std::static_pointer_cast<RawValuesColumn>(*vals_it);
   auto column = std::make_shared<ReadRawColumn>(ts_column, vals_column);
   auto column_res = column->Read(time_range);
+
+  if (!column_res) {
+    return {.not_found = time_range};
+  }
 
   std::optional<TimeRange> not_found;
   if (column_res->GetTimeRange().start > time_range.start) {
