@@ -14,7 +14,7 @@ MetricStorage::MetricStorage(const Options& options)
                                   options.persistent_storage) {}
 
 Column MetricStorage::Read(const TimeRange& time_range,
-                           AggregationType aggregation_type) {
+                           AggregationType aggregation_type) const {
   if (aggregation_type == AggregationType::kAvg) {
     // TODO: implement
     assert(false);

@@ -28,8 +28,8 @@ void Memtable::Write(const InputTimeSeries& time_series) {
   size_ += time_series.size();
 }
 
-Memtable::ReadResult Memtable::Read(const TimeRange& time_range,
-                                    StoredAggregationType aggregation_type) {
+Memtable::ReadResult Memtable::Read(
+    const TimeRange& time_range, StoredAggregationType aggregation_type) const {
   auto column_type = static_cast<ColumnType>(aggregation_type);
   auto it = std::find_if(columns_.begin(), columns_.end(),
                          [column_type](const auto& column) {
@@ -67,7 +67,7 @@ bool Memtable::NeedFlush() const {
 }
 
 Memtable::ReadResult Memtable::ReadRawValues(
-    const TimeRange& time_range, StoredAggregationType aggregation_type) {
+    const TimeRange& time_range, StoredAggregationType aggregation_type) const {
   auto ts_it = std::ranges::find(columns_, ColumnType::kRawTimestamps,
                                  &IColumn::GetType);
   if (ts_it == columns_.end()) {

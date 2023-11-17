@@ -27,7 +27,7 @@ class PersistentStorageManager {
   void Write(const SerializableColumns& columns);
 
   Column Read(const TimeRange& time_range,
-              StoredAggregationType aggregation_type);
+              StoredAggregationType aggregation_type) const;
 
  private:
   void MergeLevels();

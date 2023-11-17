@@ -18,7 +18,7 @@ void Storage::Write(MetricId id, const InputTimeSeries& input) {
 }
 
 Column Storage::Read(MetricId id, const TimeRange& time_range,
-                      AggregationType aggregation_type) {
+                      AggregationType aggregation_type) const {
   auto it = metrics_.find(id);
   if (it == metrics_.end()) {
     throw std::runtime_error("Metric with id " + std::to_string(id) +

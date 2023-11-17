@@ -13,7 +13,7 @@ class Storage {
  public:
   MetricId InitMetric(const MetricStorage::Options& options);
   Column Read(MetricId metric_id, const TimeRange& time_range,
-              AggregationType aggregation_type);
+              AggregationType aggregation_type) const;
 
   // should somehow return error (for example, when there is no free space in
   // persistent storage)

@@ -11,13 +11,13 @@ class Level {
  public:
   Level(std::shared_ptr<IPersistentStorage> storage);
   Column Read(const TimeRange& time_range,
-              StoredAggregationType aggregation_type);
+              StoredAggregationType aggregation_type) const;
   void Write(const SerializableColumn& column);
   void MovePagesFrom(Level& level);
 
  private:
   Column ReadRawValues(const TimeRange& time_range,
-                       StoredAggregationType aggregation_type);
+                       StoredAggregationType aggregation_type) const;
 
  private:
   std::shared_ptr<IPersistentStorage> storage_;

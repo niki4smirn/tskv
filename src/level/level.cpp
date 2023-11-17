@@ -15,7 +15,7 @@ Level::Level(std::shared_ptr<IPersistentStorage> storage) {
 }
 
 Column Level::Read(const TimeRange& time_range,
-                   StoredAggregationType aggregation_type) {
+                   StoredAggregationType aggregation_type) const {
   auto column_type = static_cast<ColumnType>(aggregation_type);
   auto it = std::ranges::find(page_ids_, column_type,
                               &std::pair<ColumnType, PageId>::first);
@@ -30,7 +30,7 @@ Column Level::Read(const TimeRange& time_range,
 }
 
 Column Level::ReadRawValues(const TimeRange& time_range,
-                            StoredAggregationType aggregation_type) {
+                            StoredAggregationType aggregation_type) const {
   auto ts_it = std::ranges::find(page_ids_, ColumnType::kRawTimestamps,
                                  &std::pair<ColumnType, PageId>::first);
   if (ts_it == page_ids_.end()) {

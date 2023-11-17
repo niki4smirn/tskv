@@ -101,14 +101,15 @@ ReadColumn SumColumn::Read(const TimeRange& time_range) const {
 
 void SumColumn::Write(const InputTimeSeries& time_series) {
   assert(std::ranges::is_sorted(time_series, {}, &Record::timestamp));
-  if (buckets_.empty()) {
-    // extend time range to the end of the bucket
-    auto end = time_series.back().timestamp +
-               (bucket_interval_ -
-                (time_series.back().timestamp - time_series.front().timestamp) %
-                    bucket_interval_);
-    time_range_ = {time_series.front().timestamp, end};
-  }
+  // extend time range to the end of the bucket
+  auto end = time_series.back().timestamp +
+             (bucket_interval_ -
+              (time_series.back().timestamp - time_series.front().timestamp) %
+                  bucket_interval_);
+  auto start = buckets_.empty()
+                   ? time_series.front().timestamp
+                   : std::min(time_range_.start, time_series.front().timestamp);
+  time_range_ = {start, std::max(time_range_.end, end)};
   auto needed_size = (time_series.back().timestamp + 1 - time_range_.start +
                       bucket_interval_ - 1) /
                      bucket_interval_;

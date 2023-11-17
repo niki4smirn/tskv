@@ -25,8 +25,8 @@ void PersistentStorageManager::Write(const SerializableColumns& columns) {
   MergeLevels();
 }
 
-Column PersistentStorageManager::Read(const TimeRange& time_range,
-                                      StoredAggregationType aggregation_type) {
+Column PersistentStorageManager::Read(
+    const TimeRange& time_range, StoredAggregationType aggregation_type) const {
   // TODO: not read all levels, check time_range and read only needed levels
   Column result;
   for (int i = levels_.size() - 1; i >= 0; --i) {

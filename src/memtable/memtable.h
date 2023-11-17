@@ -31,13 +31,13 @@ class Memtable {
   Memtable(const Options& options, const MetricOptions& metric_options);
   void Write(const InputTimeSeries& time_series);
   ReadResult Read(const TimeRange& time_range,
-                  StoredAggregationType aggregation_type);
+                  StoredAggregationType aggregation_type) const;
   Columns ExtractColumns();
   bool NeedFlush() const;
 
  private:
   ReadResult ReadRawValues(const TimeRange& time_range,
-                           StoredAggregationType aggregation_type);
+                           StoredAggregationType aggregation_type) const;
 
   Columns columns_;
   Options options_;
