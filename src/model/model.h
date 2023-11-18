@@ -17,6 +17,8 @@ using Value = double;
 struct TimeRange {
   TimePoint start;
   TimePoint end;
+
+  bool operator==(const TimeRange& other) const = default;
 };
 
 struct Record {

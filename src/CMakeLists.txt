@@ -14,6 +14,13 @@ endif()
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+include(FetchContent)
+FetchContent_Declare(
+  googletest
+  URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
+)
+FetchContent_MakeAvailable(googletest)
+
 find_package(Protobuf REQUIRED)
 add_subdirectory(proto)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
@@ -30,6 +37,24 @@ add_executable(ts-kv-blob
         persistent-storage/persistent_storage_manager.cpp
         storage/storage.cpp
 )
+
+enable_testing()
+add_executable(ts-kv-blob-test
+        level/level.cpp
+        memtable/memtable.cpp
+        metric-storage/metric_storage.cpp
+        model/aggregations.cpp
+        model/column.cpp
+        persistent-storage/disk_storage.cpp
+        persistent-storage/persistent_storage_manager.cpp
+        storage/storage.cpp
+        tests/column_test.cpp
+)
+
+target_link_libraries(ts-kv-blob-test GTest::gtest_main)
+
+include(GoogleTest)
+gtest_discover_tests(ts-kv-blob-test)
 
 find_package(Protobuf REQUIRED)
 

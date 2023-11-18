@@ -38,7 +38,7 @@ int main() {
   auto metric_id = storage.InitMetric(tskv::MetricStorage::Options{
       tskv::MetricOptions{
           {tskv::ColumnType::kRawTimestamps, tskv::ColumnType::kRawValues}},
-          // {tskv::ColumnType::kSum}},
+      // {tskv::ColumnType::kSum}},
       tskv::Memtable::Options{.bucket_inteval = 1, .capacity = 4},
       tskv::PersistentStorageManager::Options{
           .levels =
@@ -51,8 +51,8 @@ int main() {
 
   storage.Write(metric_id, tskv::InputTimeSeries{{1, 1}, {2, 2}, {2, 1}});
   print_reads(storage, metric_id);
-  storage.Write(metric_id,
-                tskv::InputTimeSeries{{2, 3}, {3, 1}, {3, 10}, {4, 2}, {4, -1}});
+  storage.Write(metric_id, tskv::InputTimeSeries{
+                               {2, 3}, {3, 1}, {3, 10}, {4, 2}, {4, -1}});
   print_reads(storage, metric_id);
   return 0;
 }

@@ -11,11 +11,17 @@ namespace tskv {
 SumColumn::SumColumn(Duration bucket_interval)
     : bucket_interval_(bucket_interval) {}
 
-SumColumn::SumColumn(std::vector<double> buckets, const TimeRange& time_range,
+SumColumn::SumColumn(std::vector<double> buckets, const TimePoint& start_time,
                      Duration bucket_interval)
     : buckets_(std::move(buckets)),
-      time_range_(time_range),
-      bucket_interval_(bucket_interval) {}
+      start_time_(start_time),
+      bucket_interval_(bucket_interval) {
+  auto time_range = GetTimeRange();
+  assert(buckets_.size() ==
+         (time_range.end - time_range.start + bucket_interval_ - 1) /
+             bucket_interval_);
+  assert(start_time % bucket_interval_ == 0);
+}
 
 ColumnType SumColumn::GetType() const {
   return ColumnType::kSum;
@@ -24,8 +30,7 @@ ColumnType SumColumn::GetType() const {
 CompressedBytes SumColumn::ToBytes() const {
   CompressedBytes res;
   Append(res, bucket_interval_);
-  Append(res, time_range_.start);
-  Append(res, time_range_.end);
+  Append(res, start_time_);
   Append(res, buckets_.data(), buckets_.size());
   return res;
 }
@@ -49,18 +54,19 @@ void SumColumn::Merge(Column column) {
   }
   if (buckets_.empty()) {
     buckets_ = sum_column->buckets_;
-    time_range_ = sum_column->time_range_;
+    start_time_ = sum_column->start_time_;
     return;
   }
   if (sum_column->buckets_.empty()) {
     return;
   }
-  if (sum_column->time_range_.start < time_range_.start) {
+  if (sum_column->start_time_ < start_time_) {
     throw std::runtime_error("Wrong merge order");
   }
 
-  auto intersection_start_opt = GetBucketIdx(sum_column->time_range_.start);
-  auto intersection_end_opt = GetBucketIdx(sum_column->time_range_.end);
+  auto sum_column_time_range = sum_column->GetTimeRange();
+  auto intersection_start_opt = GetBucketIdx(sum_column_time_range.start);
+  auto intersection_end_opt = GetBucketIdx(sum_column_time_range.end);
   auto intersection_end =
       intersection_end_opt ? *intersection_end_opt : buckets_.size();
   auto intersection_start =
@@ -69,18 +75,19 @@ void SumColumn::Merge(Column column) {
     buckets_[i] += sum_column->buckets_[i - intersection_start];
   }
 
-  auto to_insert_zeroes =
-      (sum_column->time_range_.start - time_range_.end) / bucket_interval_;
-  for (size_t i = 0; i < to_insert_zeroes; ++i) {
-    buckets_.push_back(0);
+  auto cur_time_range = GetTimeRange();
+  if (sum_column->start_time_ > cur_time_range.end) {
+    auto to_insert_zeroes =
+        (sum_column->start_time_ - cur_time_range.end) / bucket_interval_;
+    for (size_t i = 0; i < to_insert_zeroes; ++i) {
+      buckets_.push_back(0);
+    }
   }
 
   auto to_skip = intersection_start ? intersection_end - intersection_start : 0;
   for (const auto& val : std::views::drop(sum_column->buckets_, to_skip)) {
     buckets_.push_back(val);
   }
-
-  time_range_.end = std::max(time_range_.end, sum_column->time_range_.end);
 }
 
 ReadColumn SumColumn::Read(const TimeRange& time_range) const {
@@ -89,30 +96,32 @@ ReadColumn SumColumn::Read(const TimeRange& time_range) const {
   }
   auto start_bucket = *GetBucketIdx(time_range.start);
   auto end_bucket = *GetBucketIdx(time_range.end);
-  auto new_time_range = TimeRange{
-      std::max(time_range.start, time_range_.start),
-      std::min(time_range.end, time_range_.end),
-  };
+  if (end_bucket < buckets_.size() && time_range.end % bucket_interval_ != 0) {
+    ++end_bucket;
+  }
+  if (start_bucket == end_bucket) {
+    return std::shared_ptr<SumColumn>(nullptr);
+  }
+  auto new_start_time = start_time_;
+  if (time_range.start > start_time_) {
+    new_start_time =
+        time_range.start - (time_range.start - start_time_) % bucket_interval_;
+  }
   return std::make_shared<SumColumn>(
       std::vector<double>(buckets_.begin() + start_bucket,
                           buckets_.begin() + end_bucket),
-      new_time_range, bucket_interval_);
+      new_start_time, bucket_interval_);
 }
 
 void SumColumn::Write(const InputTimeSeries& time_series) {
   assert(std::ranges::is_sorted(time_series, {}, &Record::timestamp));
-  // extend time range to the end of the bucket
-  auto end = time_series.back().timestamp +
-             (bucket_interval_ -
-              (time_series.back().timestamp - time_series.front().timestamp) %
-                  bucket_interval_);
-  auto start = buckets_.empty()
-                   ? time_series.front().timestamp
-                   : std::min(time_range_.start, time_series.front().timestamp);
-  time_range_ = {start, std::max(time_range_.end, end)};
-  auto needed_size = (time_series.back().timestamp + 1 - time_range_.start +
-                      bucket_interval_ - 1) /
-                     bucket_interval_;
+  if (buckets_.empty()) {
+    start_time_ = time_series.front().timestamp;
+  }
+  assert(time_series.front().timestamp >= start_time_);
+  auto needed_size =
+      (time_series.back().timestamp + 1 - start_time_ + bucket_interval_ - 1) /
+      bucket_interval_;
   buckets_.resize(needed_size);
   for (const auto& record : time_series) {
     auto idx = *GetBucketIdx(record.timestamp);
@@ -121,15 +130,16 @@ void SumColumn::Write(const InputTimeSeries& time_series) {
 }
 
 std::optional<size_t> SumColumn::GetBucketIdx(TimePoint timestamp) const {
-  if (timestamp < time_range_.start) {
+  if (timestamp < start_time_) {
     return 0;
   }
 
-  if (timestamp >= time_range_.end) {
+  auto time_range = GetTimeRange();
+  if (timestamp >= time_range.end) {
     return buckets_.size();
   }
 
-  return (timestamp - time_range_.start) / bucket_interval_;
+  return (timestamp - start_time_) / bucket_interval_;
 }
 
 std::vector<Value> SumColumn::GetValues() const {
@@ -137,14 +147,14 @@ std::vector<Value> SumColumn::GetValues() const {
 }
 
 TimeRange SumColumn::GetTimeRange() const {
-  return time_range_;
+  return {start_time_, start_time_ + buckets_.size() * bucket_interval_};
 }
 
 Column SumColumn::Extract() {
   auto sum_column = std::make_shared<SumColumn>(std::move(buckets_),
-                                                time_range_, bucket_interval_);
+                                                start_time_, bucket_interval_);
   buckets_ = {};
-  time_range_ = {};
+  start_time_ = 0;
   auto read_column = std::static_pointer_cast<IReadColumn>(sum_column);
   return std::static_pointer_cast<IColumn>(read_column);
 }
@@ -305,17 +315,26 @@ ReadColumn ReadRawColumn::Read(const TimeRange& time_range) const {
 }
 
 void ReadRawColumn::Write(const InputTimeSeries& time_series) {
+  if (!timestamps_column_) {
+    timestamps_column_ = std::make_shared<RawTimestampsColumn>();
+  }
+  if (!values_column_) {
+    values_column_ = std::make_shared<RawValuesColumn>();
+  }
   timestamps_column_->Write(time_series);
   values_column_->Write(time_series);
 }
 
 std::vector<Value> ReadRawColumn::GetValues() const {
+  if (!values_column_) {
+    return {};
+  }
   return values_column_->GetValues();
 }
 
 TimeRange ReadRawColumn::GetTimeRange() const {
   return TimeRange{timestamps_column_->timestamps_.front(),
-                   timestamps_column_->timestamps_.back()};
+                   timestamps_column_->timestamps_.back() + 1};
 }
 
 Column ReadRawColumn::Extract() {
@@ -329,6 +348,9 @@ Column ReadRawColumn::Extract() {
 }
 
 std::vector<TimePoint> ReadRawColumn::GetTimestamps() const {
+  if (!timestamps_column_) {
+    return {};
+  }
   auto timestamps = timestamps_column_->GetValues();
   return {timestamps.begin(), timestamps.end()};
 }
@@ -377,10 +399,9 @@ Column FromBytes(const CompressedBytes& bytes, ColumnType column_type) {
       auto reader = CompressedBytesReader(bytes);
       auto bucket_interval = reader.Read<size_t>();
       auto start = reader.Read<TimePoint>();
-      auto end = reader.Read<TimePoint>();
       auto buckets = reader.ReadAll<Value>();
-      auto sum_column = std::make_shared<SumColumn>(
-          buckets, TimeRange{start, end}, bucket_interval);
+      auto sum_column =
+          std::make_shared<SumColumn>(buckets, start, bucket_interval);
       auto read_column = std::static_pointer_cast<IReadColumn>(sum_column);
       return std::static_pointer_cast<IColumn>(read_column);
     }

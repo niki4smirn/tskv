@@ -111,7 +111,7 @@ using SerializableColumns = std::vector<SerializableColumn>;
 class SumColumn : public IReadColumn, public ISerializableColumn {
  public:
   explicit SumColumn(Duration bucket_interval);
-  SumColumn(std::vector<double> buckets, const TimeRange& time_range,
+  SumColumn(std::vector<double> buckets, const TimePoint& start_time,
             Duration bucket_interval);
   ColumnType GetType() const override;
   CompressedBytes ToBytes() const override;
@@ -127,7 +127,7 @@ class SumColumn : public IReadColumn, public ISerializableColumn {
 
  private:
   std::vector<Value> buckets_;
-  TimeRange time_range_{};
+  TimePoint start_time_;
   Duration bucket_interval_;
 };
 
