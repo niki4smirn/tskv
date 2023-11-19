@@ -49,6 +49,7 @@ add_executable(ts-kv-blob-test
         persistent-storage/persistent_storage_manager.cpp
         storage/storage.cpp
         tests/column_test.cpp
+        tests/memtable_test.cpp
 )
 
 target_link_libraries(ts-kv-blob-test GTest::gtest_main)

@@ -116,8 +116,10 @@ ReadColumn SumColumn::Read(const TimeRange& time_range) const {
 void SumColumn::Write(const InputTimeSeries& time_series) {
   assert(std::ranges::is_sorted(time_series, {}, &Record::timestamp));
   if (buckets_.empty()) {
-    start_time_ = time_series.front().timestamp;
+    start_time_ = time_series.front().timestamp -
+                  time_series.front().timestamp % bucket_interval_;
   }
+  assert(start_time_ % bucket_interval_ == 0);
   assert(time_series.front().timestamp >= start_time_);
   auto needed_size =
       (time_series.back().timestamp + 1 - start_time_ + bucket_interval_ - 1) /

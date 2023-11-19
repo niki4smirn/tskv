@@ -11,10 +11,11 @@ namespace tskv {
 
 Memtable::Memtable(const Options& options, const MetricOptions& metric_options)
     : options_(options) {
+  // TODO: maybe prevent passing raw_timestamps and raw_values?
   for (auto column_type : metric_options.column_types) {
-    if (column_type == ColumnType::kRawTimestamps ||
-        column_type == ColumnType::kRawValues) {
-      columns_.push_back(CreateRawColumn(column_type));
+    if (column_type == ColumnType::kRawRead) {
+      columns_.push_back(CreateRawColumn(ColumnType::kRawTimestamps));
+      columns_.push_back(CreateRawColumn(ColumnType::kRawValues));
     } else {
       columns_.push_back(CreateColumn(column_type, options.bucket_inteval));
     }

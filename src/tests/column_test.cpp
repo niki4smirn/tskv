@@ -35,23 +35,22 @@ TEST(SumColumn, Write) {
   {
     tskv::SumColumn column(2);
     column.Write({{1, 1}, {2, 2}, {2, 1}, {3, 1}, {3, 10}, {4, 2}, {4, -1}});
-    auto expected = std::vector<double>{4, 12};
+    auto expected = std::vector<double>{1, 14, 1};
     EXPECT_EQ(column.GetValues(), expected);
-    EXPECT_EQ(column.GetTimeRange(), tskv::TimeRange(1, 5));
+    EXPECT_EQ(column.GetTimeRange(), tskv::TimeRange(0, 6));
 
     column.Write({{4, 3}, {5, 11}, {6, 8}, {6, 7}});
-    expected = std::vector<double>{4, 15, 26};
+    expected = std::vector<double>{1, 14, 15, 15};
     EXPECT_EQ(column.GetValues(), expected);
-    EXPECT_EQ(column.GetTimeRange(), tskv::TimeRange(1, 7));
+    EXPECT_EQ(column.GetTimeRange(), tskv::TimeRange(0, 8));
 
     column.Write({{7, 1}, {7, 2}, {7, 3}, {7, 4}});
-    expected = std::vector<double>{4, 15, 26, 10};
+    expected = std::vector<double>{1, 14, 15, 25};
     EXPECT_EQ(column.GetValues(), expected);
-    EXPECT_EQ(column.GetTimeRange(), tskv::TimeRange(1, 9));
+    EXPECT_EQ(column.GetTimeRange(), tskv::TimeRange(0, 8));
   }
 }
 
-// TODO: check time range
 TEST(SumColumn, Read) {
   {
     tskv::SumColumn column(std::vector<double>{1, 2, 3, 4, 5},
