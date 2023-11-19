@@ -6,8 +6,8 @@
 
 namespace tskv {
 
+// TODO: merge columns
 class Level {
- public:
  public:
   Level(std::shared_ptr<IPersistentStorage> storage);
   Column Read(const TimeRange& time_range,
