@@ -131,6 +131,36 @@ void SumColumn::Write(const InputTimeSeries& time_series) {
   }
 }
 
+void SumColumn::ScaleBuckets(Duration bucket_interval) {
+  assert(bucket_interval % bucket_interval_ == 0);
+  auto scale = bucket_interval / bucket_interval_;
+  auto new_buckets_sz = buckets_.size() / scale;
+  if (start_time_ % bucket_interval != 0) {
+    ++new_buckets_sz;
+  }
+
+  double sum = 0;
+  size_t pos = 0;
+  for (size_t i = 0; i < buckets_.size(); ++i) {
+    sum += buckets_[i];
+    if ((start_time_ + bucket_interval_ * i) % bucket_interval ==
+        bucket_interval - 1) {
+      buckets_[pos++] = sum;
+      sum = 0;
+    }
+  }
+
+  if (sum != 0) {
+    buckets_[pos++] = sum;
+  }
+
+  assert(pos == new_buckets_sz);
+
+  start_time_ = start_time_ - start_time_ % bucket_interval;
+  bucket_interval_ = bucket_interval;
+  buckets_.resize(new_buckets_sz);
+}
+
 std::optional<size_t> SumColumn::GetBucketIdx(TimePoint timestamp) const {
   if (timestamp < start_time_) {
     return 0;
@@ -368,7 +398,8 @@ Column CreateRawColumn(ColumnType column_type) {
   }
 }
 
-Column CreateColumn(ColumnType column_type, Duration bucket_interval) {
+Column CreateAggregatedColumn(ColumnType column_type,
+                              Duration bucket_interval) {
   switch (column_type) {
     case ColumnType::kSum: {
       auto sum_column = std::make_shared<SumColumn>(bucket_interval);

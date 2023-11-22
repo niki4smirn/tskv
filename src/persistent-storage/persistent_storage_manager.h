@@ -12,18 +12,13 @@ namespace tskv {
 
 class PersistentStorageManager {
  public:
-  struct LevelOptions {
-    Duration bucket_interval;
-    Duration level_duration;
-  };
-
   struct Options {
-    std::vector<LevelOptions> levels;
+    std::vector<Level::Options> levels;
+    std::shared_ptr<IPersistentStorage> storage;
   };
 
  public:
-  PersistentStorageManager(const Options& options,
-                           std::shared_ptr<IPersistentStorage> storage);
+  PersistentStorageManager(const Options& options);
   void Write(const SerializableColumns& columns);
 
   Column Read(const TimeRange& time_range,
@@ -34,8 +29,6 @@ class PersistentStorageManager {
 
  private:
   std::vector<Level> levels_;
-  std::vector<LevelOptions> level_options_;
-  std::vector<TimePoint> last_level_merges_;
 };
 
 }  // namespace tskv

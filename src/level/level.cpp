@@ -10,18 +10,23 @@
 
 namespace tskv {
 
-Level::Level(std::shared_ptr<IPersistentStorage> storage) {
-  storage_ = std::move(storage);
-}
+Level::Level(const Options& options,
+             std::shared_ptr<IPersistentStorage> storage)
+    : options_(options), storage_(std::move(storage)) {}
 
 Column Level::Read(const TimeRange& time_range,
                    StoredAggregationType aggregation_type) const {
-  auto column_type = static_cast<ColumnType>(aggregation_type);
+  if (page_ids_.empty()) {
+    return {};
+  }
+  auto column_type = ToColumnType(aggregation_type);
+  if (column_type == ColumnType::kRawRead) {
+    return ReadRawValues(time_range);
+  }
   auto it = std::ranges::find(page_ids_, column_type,
                               &std::pair<ColumnType, PageId>::first);
-  if (it == page_ids_.end()) {
-    return ReadRawValues(time_range, aggregation_type);
-  }
+  assert(it != page_ids_.end());
+
   auto bytes = storage_->Read(it->second);
   auto column =
       std::static_pointer_cast<IReadColumn>(FromBytes(bytes, column_type));
@@ -29,8 +34,7 @@ Column Level::Read(const TimeRange& time_range,
   return column->Read(time_range);
 }
 
-Column Level::ReadRawValues(const TimeRange& time_range,
-                            StoredAggregationType aggregation_type) const {
+Column Level::ReadRawValues(const TimeRange& time_range) const {
   auto ts_it = std::ranges::find(page_ids_, ColumnType::kRawTimestamps,
                                  &std::pair<ColumnType, PageId>::first);
   if (ts_it == page_ids_.end()) {
@@ -49,24 +53,58 @@ Column Level::ReadRawValues(const TimeRange& time_range,
 }
 
 void Level::Write(const SerializableColumn& column) {
+  if (auto read_col = std::dynamic_pointer_cast<IReadColumn>(column)) {
+    auto time_range = read_col->GetTimeRange();
+    time_range_ = time_range_.Merge(time_range);
+  }
   auto column_type = column->GetType();
   auto it = std::ranges::find(page_ids_, column_type,
                               &std::pair<ColumnType, PageId>::first);
-
-  PageId page_id;
   if (it == page_ids_.end()) {
-    page_id = storage_->CreatePage();
+    PageId page_id = storage_->CreatePage();
     page_ids_.emplace_back(column_type, page_id);
-  } else {
-    page_id = it->second;
+    storage_->Write(page_id, column->ToBytes());
+    return;
   }
-  storage_->Write(page_id, column->ToBytes());
+
+  PageId page_id = it->second;
+  auto read_column = std::dynamic_pointer_cast<ISerializableColumn>(
+      FromBytes(storage_->Read(page_id), column_type));
+  read_column->Merge(column);
+  storage_->Write(page_id, read_column->ToBytes());
 }
 
 void Level::MovePagesFrom(Level& other) {
-  page_ids_.insert(page_ids_.end(), other.page_ids_.begin(),
-                   other.page_ids_.end());
+  if (options_.bucket_interval == other.options_.bucket_interval &&
+      options_.store_raw == other.options_.store_raw) {
+    page_ids_.insert(page_ids_.end(), other.page_ids_.begin(),
+                     other.page_ids_.end());
+  } else {
+    for (auto& [column_type, page_id] : other.page_ids_) {
+      auto bytes = other.storage_->Read(page_id);
+      auto column = std::dynamic_pointer_cast<ISerializableColumn>(
+          FromBytes(bytes, column_type));
+      if (column_type == ColumnType::kRawTimestamps ||
+          column_type == ColumnType::kRawValues) {
+        if (!options_.store_raw) {
+          continue;
+        }
+        Write(column);
+      } else {
+        auto aggreagte_column =
+            std::dynamic_pointer_cast<IAggregateColumn>(column);
+        aggreagte_column->ScaleBuckets(options_.bucket_interval);
+        Write(aggreagte_column);
+      }
+    }
+  }
+  time_range_ = time_range_.Merge(other.time_range_);
   other.page_ids_.clear();
+  other.time_range_ = {};
+}
+
+bool Level::NeedMerge() const {
+  return time_range_.Duration() >= options_.level_duration;
 }
 
 }  // namespace tskv

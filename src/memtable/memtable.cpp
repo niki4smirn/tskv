@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include "metric-storage/metric_storage.h"
+#include "model/aggregations.h"
 #include "model/column.h"
 #include "model/model.h"
 
@@ -11,14 +12,21 @@ namespace tskv {
 
 Memtable::Memtable(const Options& options, const MetricOptions& metric_options)
     : options_(options) {
-  // TODO: maybe prevent passing raw_timestamps and raw_values?
-  for (auto column_type : metric_options.column_types) {
-    if (column_type == ColumnType::kRawRead) {
-      columns_.push_back(CreateRawColumn(ColumnType::kRawTimestamps));
-      columns_.push_back(CreateRawColumn(ColumnType::kRawValues));
-    } else {
-      columns_.push_back(CreateColumn(column_type, options.bucket_inteval));
+  for (auto aggregation_type : metric_options.aggregation_types) {
+    if (aggregation_type == AggregationType::kAvg) {
+      columns_.push_back(
+          CreateAggregatedColumn(ColumnType::kSum, options.bucket_inteval));
+      columns_.push_back(
+          CreateAggregatedColumn(ColumnType::kCount, options.bucket_inteval));
+      continue;
     }
+    auto column_type = ToColumnType(aggregation_type);
+    columns_.push_back(
+        CreateAggregatedColumn(column_type, options.bucket_inteval));
+  }
+  if (options.store_raw) {
+    columns_.push_back(CreateRawColumn(ColumnType::kRawTimestamps));
+    columns_.push_back(CreateRawColumn(ColumnType::kRawValues));
   }
 }
 
@@ -31,14 +39,15 @@ void Memtable::Write(const InputTimeSeries& time_series) {
 
 Memtable::ReadResult Memtable::Read(
     const TimeRange& time_range, StoredAggregationType aggregation_type) const {
-  auto column_type = static_cast<ColumnType>(aggregation_type);
+  auto column_type = ToColumnType(aggregation_type);
+  if (column_type == ColumnType::kRawRead) {
+    return ReadRawValues(time_range);
+  }
   auto it = std::find_if(columns_.begin(), columns_.end(),
                          [column_type](const auto& column) {
                            return column->GetType() == column_type;
                          });
-  if (it == columns_.end()) {
-    return ReadRawValues(time_range, aggregation_type);
-  }
+  assert(it != columns_.end());
 
   auto column = std::static_pointer_cast<IReadColumn>(*it);
   auto column_res = column->Read(time_range);
@@ -68,7 +77,7 @@ bool Memtable::NeedFlush() const {
 }
 
 Memtable::ReadResult Memtable::ReadRawValues(
-    const TimeRange& time_range, StoredAggregationType aggregation_type) const {
+    const TimeRange& time_range) const {
   auto ts_it = std::ranges::find(columns_, ColumnType::kRawTimestamps,
                                  &IColumn::GetType);
   if (ts_it == columns_.end()) {

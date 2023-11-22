@@ -101,6 +101,11 @@ class ISerializableColumn : public IColumn {
   virtual CompressedBytes ToBytes() const = 0;
 };
 
+class IAggregateColumn : public ISerializableColumn {
+ public:
+  virtual void ScaleBuckets(Duration bucket_interval) = 0;
+};
+
 using Column = std::shared_ptr<IColumn>;
 using ReadColumn = std::shared_ptr<IReadColumn>;
 using SerializableColumn = std::shared_ptr<ISerializableColumn>;
@@ -108,7 +113,7 @@ using Columns = std::vector<Column>;
 using ReadColumns = std::vector<ReadColumn>;
 using SerializableColumns = std::vector<SerializableColumn>;
 
-class SumColumn : public IReadColumn, public ISerializableColumn {
+class SumColumn : public IReadColumn, public IAggregateColumn {
  public:
   explicit SumColumn(Duration bucket_interval);
   SumColumn(std::vector<double> buckets, const TimePoint& start_time,
@@ -121,6 +126,7 @@ class SumColumn : public IReadColumn, public ISerializableColumn {
   std::vector<Value> GetValues() const override;
   TimeRange GetTimeRange() const override;
   Column Extract() override;
+  void ScaleBuckets(Duration bucket_interval) override;
 
  private:
   std::optional<size_t> GetBucketIdx(TimePoint timestamp) const;
@@ -184,7 +190,7 @@ class ReadRawColumn : public IReadColumn {
   std::shared_ptr<RawValuesColumn> values_column_;
 };
 
-Column CreateColumn(ColumnType column_type, Duration bucket_interval);
+Column CreateAggregatedColumn(ColumnType column_type, Duration bucket_interval);
 
 Column CreateRawColumn(ColumnType column_type);
 

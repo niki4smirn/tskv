@@ -4,14 +4,14 @@
 #include "model/model.h"
 
 #include <cassert>
+#include <iostream>
 #include <ranges>
 
 namespace tskv {
 
 MetricStorage::MetricStorage(const Options& options)
     : memtable_(options.memtable_options, options.metric_options),
-      persistent_storage_manager_(options.persistent_storage_manager_options,
-                                  options.persistent_storage) {}
+      persistent_storage_manager_(options.persistent_storage_manager_options) {}
 
 Column MetricStorage::Read(const TimeRange& time_range,
                            AggregationType aggregation_type) const {

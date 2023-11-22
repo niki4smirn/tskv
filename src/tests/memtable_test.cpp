@@ -2,6 +2,7 @@
 
 #include "memtable/memtable.h"
 #include "metric-storage/metric_storage.h"
+#include "model/aggregations.h"
 #include "model/column.h"
 #include "model/model.h"
 
@@ -11,7 +12,7 @@ TEST(Memtable, ReadWrite) {
           .bucket_inteval = 2,
           .capacity = 6,
       },
-      tskv::MetricOptions{{tskv::ColumnType::kSum}});
+      tskv::MetricOptions{{tskv::AggregationType::kSum}});
   auto read_res =
       memtable.Read(tskv::TimeRange{0, 100}, tskv::StoredAggregationType::kSum);
   ASSERT_FALSE(read_res.found);
@@ -70,9 +71,9 @@ TEST(Memtable, ExtractColumns) {
       tskv::Memtable::Options{
           .bucket_inteval = 2,
           .capacity = 6,
+          .store_raw = true,
       },
-      tskv::MetricOptions{
-          {tskv::ColumnType::kSum, tskv::ColumnType::kRawRead}});
+      tskv::MetricOptions{{tskv::AggregationType::kSum}});
 
   memtable.Write(
       tskv::InputTimeSeries{{3, 10}, {4, 1}, {5, 2}, {7, 3}, {7, 1}});

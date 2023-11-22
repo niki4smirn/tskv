@@ -19,6 +19,14 @@ struct TimeRange {
   TimePoint end;
 
   bool operator==(const TimeRange& other) const = default;
+
+  Duration Duration() const { return end - start; }
+  TimeRange Merge(const TimeRange& other) const {
+    if (start == 0 && end == 0) {
+      return other;
+    }
+    return {std::min(start, other.start), std::max(end, other.end)};
+  }
 };
 
 struct Record {

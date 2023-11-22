@@ -8,7 +8,7 @@
 namespace tskv {
 
 struct MetricOptions {
-  std::vector<ColumnType> column_types;
+  std::vector<AggregationType> aggregation_types;
 };
 
 class MetricStorage {
@@ -18,7 +18,6 @@ class MetricStorage {
     Memtable::Options memtable_options;
 
     PersistentStorageManager::Options persistent_storage_manager_options;
-    std::shared_ptr<IPersistentStorage> persistent_storage;
   };
 
  public:

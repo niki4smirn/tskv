@@ -4,24 +4,17 @@
 
 namespace tskv {
 
-PersistentStorageManager::PersistentStorageManager(
-    const Options& options,
-    std::shared_ptr<IPersistentStorage> persistent_storage) {
+PersistentStorageManager::PersistentStorageManager(const Options& options) {
   for (size_t i = 0; i < options.levels.size(); ++i) {
-    levels_.emplace_back(persistent_storage);
+    levels_.emplace_back(options.levels[i], options.storage);
   }
-  level_options_ = options.levels;
-  // temporary for testing
-  auto now = 0;
-  last_level_merges_.assign(options.levels.size(), now);
 }
 
 void PersistentStorageManager::Write(const SerializableColumns& columns) {
   for (const auto& column : columns) {
-    levels_[0].Write(column);
+    levels_.front().Write(column);
   }
 
-  // we should do it in parallel
   MergeLevels();
 }
 
@@ -41,13 +34,9 @@ Column PersistentStorageManager::Read(
 }
 
 void PersistentStorageManager::MergeLevels() {
-  // temporary for testing
-  auto now = 3;
   for (size_t i = 0; i < levels_.size() - 1; ++i) {
-    if (level_options_[i].level_duration + last_level_merges_[i] < now) {
-      // TODO: handle bucket intervals
+    if (levels_[i].NeedMerge()) {
       levels_[i + 1].MovePagesFrom(levels_[i]);
-      last_level_merges_[i] = now;
     }
   }
 }

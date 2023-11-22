@@ -19,6 +19,7 @@ class Memtable {
   struct Options {
     Duration bucket_inteval;
     size_t capacity;
+    bool store_raw{false};
   };
 
   struct ReadResult {
@@ -36,8 +37,7 @@ class Memtable {
   bool NeedFlush() const;
 
  private:
-  ReadResult ReadRawValues(const TimeRange& time_range,
-                           StoredAggregationType aggregation_type) const;
+  ReadResult ReadRawValues(const TimeRange& time_range) const;
 
   Columns columns_;
   Options options_;

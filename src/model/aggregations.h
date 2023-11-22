@@ -1,23 +1,23 @@
+#pragma once
+
 #include <cstddef>
 
 namespace tskv {
 
+enum class ColumnType;
+
 enum class StoredAggregationType {
+  kNone,
   kSum,
   kCount,
   kMin,
   kMax,
-
-  // WARNING: kAggregationTypeCount must be the last element.
-  kStoredAggregationTypeCount,
 };
-
-constexpr auto kStoredAggregationsNum =
-    static_cast<size_t>(StoredAggregationType::kStoredAggregationTypeCount);
 
 // WARNING: preserve order like in StoredAggregationType to make it easier to
 // convert between them
 enum class AggregationType {
+  kNone,
   kSum,
   kCount,
   kMin,
@@ -26,5 +26,7 @@ enum class AggregationType {
 };
 
 StoredAggregationType ToStoredAggregationType(AggregationType aggregation_type);
+ColumnType ToColumnType(AggregationType aggregation_type);
+ColumnType ToColumnType(StoredAggregationType aggregation_type);
 
 }  // namespace tskv

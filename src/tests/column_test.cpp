@@ -51,6 +51,7 @@ TEST(SumColumn, Write) {
   }
 }
 
+// TODO: check time range
 TEST(SumColumn, Read) {
   {
     tskv::SumColumn column(std::vector<double>{1, 2, 3, 4, 5},
@@ -178,6 +179,9 @@ TEST(SumColumn, FromBytes) {
   EXPECT_EQ(sum_column->GetValues(), expected);
   EXPECT_EQ(sum_column->GetTimeRange(), tskv::TimeRange(45, 120));
 }
+
+
+// TDOO: test scale buckets
 
 TEST(RawTimestamps, Basic) {
   tskv::RawTimestampsColumn column(std::vector<uint64_t>{1, 2, 3, 4, 5});
