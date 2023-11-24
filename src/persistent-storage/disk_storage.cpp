@@ -36,7 +36,7 @@ std::string DiskStorage::GeneratePageId() {
 
 PageId DiskStorage::CreatePage() {
   auto page_id = GeneratePageId();
-  std::ofstream out(page_id);
+  std::ofstream out(path_ / page_id, std::ios::binary);
   while (out.fail()) {
     page_id = GeneratePageId();
     out.open(page_id);
