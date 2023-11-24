@@ -19,10 +19,10 @@ class DiskStorage : public IPersistentStorage {
   CompressedBytes Read(const PageId& page_id) override;
   void Write(const PageId& page_id, const CompressedBytes& bytes) override;
   void DeletePage(const PageId& page_id) override;
+  static std::string GeneratePageId();
 
  private:
   std::filesystem::path path_;
-  PageId next_page_id_{0};
 };
 
 }  // namespace tskv

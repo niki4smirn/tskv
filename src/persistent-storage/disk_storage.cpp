@@ -1,6 +1,7 @@
 #include "disk_storage.h"
 #include <cassert>
 #include <fstream>
+#include <random>
 #include <stdexcept>
 #include "model/column.h"
 
@@ -17,17 +18,35 @@ DiskStorage::Metadata DiskStorage::GetMetadata() const {
   assert(false);
 }
 
+std::string DiskStorage::GeneratePageId() {
+  // generate random uuidv4
+  auto mt = std::mt19937{std::random_device{}()};
+  std::string out;
+  static std::string chars = "0123456789abcdef";
+  for (auto i = 0; i < 36; ++i) {
+    if (i == 8 || i == 13 || i == 18 || i == 23) {
+      out += '-';
+    } else {
+      auto dist = std::uniform_int_distribution<>{0, 15};
+      out += chars[dist(mt)];
+    }
+  }
+  return out;
+}
+
 PageId DiskStorage::CreatePage() {
-  auto page_id = next_page_id_;
-  ++next_page_id_;
-  // i'm not sure if this is the best way to create a file
-  std::ofstream out(std::to_string(page_id));
+  auto page_id = GeneratePageId();
+  std::ofstream out(page_id);
+  while (out.fail()) {
+    page_id = GeneratePageId();
+    out.open(page_id);
+  }
   out.close();
   return page_id;
 }
 
 CompressedBytes DiskStorage::Read(const PageId& page_id) {
-  std::ifstream in(path_ / std::to_string(page_id), std::ios::binary);
+  std::ifstream in(path_ / page_id, std::ios::binary);
   if (!in) {
     throw std::runtime_error("file not found");
   }
@@ -37,7 +56,7 @@ CompressedBytes DiskStorage::Read(const PageId& page_id) {
 }
 
 void DiskStorage::Write(const PageId& page_id, const CompressedBytes& bytes) {
-  std::ofstream out(path_ / std::to_string(page_id), std::ios::binary);
+  std::ofstream out(path_ / page_id, std::ios::binary);
   if (!out) {
     throw std::runtime_error("file not found");
   }

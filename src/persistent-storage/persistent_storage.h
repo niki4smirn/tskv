@@ -7,7 +7,7 @@
 
 namespace tskv {
 
-using PageId = uint64_t;
+using PageId = std::string;
 
 class IPersistentStorage {
  public:
