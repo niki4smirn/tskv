@@ -104,7 +104,7 @@ void Level::MovePagesFrom(Level& other) {
 }
 
 bool Level::NeedMerge() const {
-  return time_range_.Duration() >= options_.level_duration;
+  return time_range_.GetDuration() >= options_.level_duration;
 }
 
 }  // namespace tskv

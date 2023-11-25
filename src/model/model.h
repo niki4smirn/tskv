@@ -20,7 +20,7 @@ struct TimeRange {
 
   bool operator==(const TimeRange& other) const = default;
 
-  Duration Duration() const { return end - start; }
+  Duration GetDuration() const { return end - start; }
   TimeRange Merge(const TimeRange& other) const {
     if (start == 0 && end == 0) {
       return other;
