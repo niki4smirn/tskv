@@ -477,7 +477,7 @@ void MinColumn::Write(const InputTimeSeries& time_series) {
   auto needed_size =
       (time_series.back().timestamp + 1 - start_time_ + bucket_interval_ - 1) /
       bucket_interval_;
-  buckets_.assign(needed_size, std::numeric_limits<double>::max());
+  buckets_.resize(needed_size, std::numeric_limits<double>::max());
   for (const auto& record : time_series) {
     auto idx = *GetBucketIdx(record.timestamp);
     buckets_[idx] = std::min(buckets_[idx], record.value);
@@ -591,7 +591,7 @@ void MaxColumn::Write(const InputTimeSeries& time_series) {
   auto needed_size =
       (time_series.back().timestamp + 1 - start_time_ + bucket_interval_ - 1) /
       bucket_interval_;
-  buckets_.assign(needed_size, std::numeric_limits<double>::min());
+  buckets_.resize(needed_size, std::numeric_limits<double>::min());
   for (const auto& record : time_series) {
     auto idx = *GetBucketIdx(record.timestamp);
     buckets_[idx] = std::max(buckets_[idx], record.value);
