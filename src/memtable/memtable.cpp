@@ -23,6 +23,7 @@ Memtable::Memtable(const Options& options, const MetricOptions& metric_options)
     auto column_type = ToColumnType(aggregation_type);
     columns_.push_back(
         CreateAggregatedColumn(column_type, options.bucket_inteval));
+    assert(columns_.back()->GetType() == column_type);
   }
   if (options.store_raw) {
     columns_.push_back(CreateRawColumn(ColumnType::kRawTimestamps));

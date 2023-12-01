@@ -4,15 +4,17 @@
 #include <cassert>
 #include <cstring>
 #include <ranges>
+#include <stdexcept>
 #include <utility>
 
 namespace tskv {
 
-SumColumn::SumColumn(Duration bucket_interval)
+AggregateColumn::AggregateColumn(Duration bucket_interval)
     : bucket_interval_(bucket_interval) {}
 
-SumColumn::SumColumn(std::vector<double> buckets, const TimePoint& start_time,
-                     Duration bucket_interval)
+AggregateColumn::AggregateColumn(std::vector<double> buckets,
+                                 const TimePoint& start_time,
+                                 Duration bucket_interval)
     : buckets_(std::move(buckets)),
       start_time_(start_time),
       bucket_interval_(bucket_interval) {
@@ -23,16 +25,163 @@ SumColumn::SumColumn(std::vector<double> buckets, const TimePoint& start_time,
   assert(start_time % bucket_interval_ == 0);
 }
 
-ColumnType SumColumn::GetType() const {
-  return ColumnType::kSum;
+ColumnType AggregateColumn::GetType() const {
+  throw std::runtime_error("GetType is not allowed for AggregateColumn");
 }
 
-CompressedBytes SumColumn::ToBytes() const {
+CompressedBytes AggregateColumn::ToBytes() const {
   CompressedBytes res;
   Append(res, bucket_interval_);
   Append(res, start_time_);
   Append(res, buckets_.data(), buckets_.size());
   return res;
+}
+
+void AggregateColumn::ScaleBuckets(Duration bucket_interval) {
+  throw std::runtime_error("ScaleBuckets is not allowed for AggregateColumn");
+}
+
+void AggregateColumn::Merge(Column column) {
+  throw std::runtime_error("Merge is not allowed for AggregateColumn");
+}
+
+void AggregateColumn::Write(const InputTimeSeries& time_series) {
+  throw std::runtime_error("Write is not allowed for AggregateColumn");
+}
+
+std::optional<size_t> AggregateColumn::GetBucketIdx(TimePoint timestamp) const {
+  if (timestamp < start_time_) {
+    return 0;
+  }
+
+  auto time_range = GetTimeRange();
+  if (timestamp >= time_range.end) {
+    return buckets_.size();
+  }
+
+  return (timestamp - start_time_) / bucket_interval_;
+}
+
+std::vector<Value> AggregateColumn::GetValues() const {
+  return buckets_;
+}
+
+TimeRange AggregateColumn::GetTimeRange() const {
+  return {start_time_, start_time_ + buckets_.size() * bucket_interval_};
+}
+
+Column AggregateColumn::Extract() {
+  std::shared_ptr<AggregateColumn> col;
+  switch (GetType()) {
+    case ColumnType::kSum: {
+      col = std::make_shared<SumColumn>(std::move(buckets_), start_time_,
+                                        bucket_interval_);
+      break;
+    }
+    case ColumnType::kCount: {
+      col = std::make_shared<CountColumn>(std::move(buckets_), start_time_,
+                                          bucket_interval_);
+      break;
+    }
+    case ColumnType::kMin: {
+      col = std::make_shared<MinColumn>(std::move(buckets_), start_time_,
+                                        bucket_interval_);
+      break;
+    }
+    case ColumnType::kMax: {
+      col = std::make_shared<MaxColumn>(std::move(buckets_), start_time_,
+                                        bucket_interval_);
+      break;
+    }
+    default:
+      throw std::runtime_error("Unknown column type");
+  }
+  buckets_ = {};
+  start_time_ = 0;
+  auto read_column = std::static_pointer_cast<IReadColumn>(col);
+  return std::static_pointer_cast<IColumn>(read_column);
+}
+
+ReadColumn AggregateColumn::Read(const TimeRange& time_range) const {
+  if (buckets_.empty()) {
+    return std::shared_ptr<SumColumn>(nullptr);
+  }
+  auto start_bucket = *GetBucketIdx(time_range.start);
+  auto end_bucket = *GetBucketIdx(time_range.end);
+  if (end_bucket < buckets_.size() && time_range.end % bucket_interval_ != 0) {
+    ++end_bucket;
+  }
+  if (start_bucket == end_bucket) {
+    return std::shared_ptr<SumColumn>(nullptr);
+  }
+  auto new_start_time = start_time_;
+  if (time_range.start > start_time_) {
+    new_start_time =
+        time_range.start - (time_range.start - start_time_) % bucket_interval_;
+  }
+  auto data = std::vector<double>(buckets_.begin() + start_bucket,
+                                  buckets_.begin() + end_bucket);
+  switch (GetType()) {
+    case ColumnType::kSum: {
+      return std::make_shared<SumColumn>(std::move(data), new_start_time,
+                                         bucket_interval_);
+    }
+    case ColumnType::kCount: {
+      return std::make_shared<CountColumn>(std::move(data), new_start_time,
+                                           bucket_interval_);
+    }
+    case ColumnType::kMin: {
+      return std::make_shared<MinColumn>(std::move(data), new_start_time,
+                                         bucket_interval_);
+    }
+    case ColumnType::kMax: {
+      return std::make_shared<MaxColumn>(std::move(data), new_start_time,
+                                         bucket_interval_);
+    }
+    default:
+      throw std::runtime_error("Unknown column type");
+  }
+}
+
+SumColumn::SumColumn(Duration bucket_interval)
+    : AggregateColumn(bucket_interval) {}
+
+SumColumn::SumColumn(std::vector<double> buckets, const TimePoint& start_time,
+                     Duration bucket_interval)
+    : AggregateColumn(std::move(buckets), start_time, bucket_interval) {}
+
+ColumnType SumColumn::GetType() const {
+  return ColumnType::kSum;
+}
+
+void SumColumn::ScaleBuckets(Duration bucket_interval) {
+  assert(bucket_interval % bucket_interval_ == 0);
+  auto scale = bucket_interval / bucket_interval_;
+  auto new_buckets_sz = buckets_.size() / scale;
+  if (start_time_ % bucket_interval != 0) {
+    ++new_buckets_sz;
+  }
+
+  double sum = 0;
+  size_t pos = 0;
+  for (size_t i = 0; i < buckets_.size(); ++i) {
+    sum += buckets_[i];
+    if ((start_time_ + bucket_interval_ * i) % bucket_interval ==
+        bucket_interval - 1) {
+      buckets_[pos++] = sum;
+      sum = 0;
+    }
+  }
+
+  if (sum != 0) {
+    buckets_[pos++] = sum;
+  }
+
+  assert(pos == new_buckets_sz);
+
+  start_time_ = start_time_ - start_time_ % bucket_interval;
+  bucket_interval_ = bucket_interval;
+  buckets_.resize(new_buckets_sz);
 }
 
 // column interval should start further than this->time_range.start
@@ -90,29 +239,6 @@ void SumColumn::Merge(Column column) {
   }
 }
 
-ReadColumn SumColumn::Read(const TimeRange& time_range) const {
-  if (buckets_.empty()) {
-    return std::shared_ptr<SumColumn>(nullptr);
-  }
-  auto start_bucket = *GetBucketIdx(time_range.start);
-  auto end_bucket = *GetBucketIdx(time_range.end);
-  if (end_bucket < buckets_.size() && time_range.end % bucket_interval_ != 0) {
-    ++end_bucket;
-  }
-  if (start_bucket == end_bucket) {
-    return std::shared_ptr<SumColumn>(nullptr);
-  }
-  auto new_start_time = start_time_;
-  if (time_range.start > start_time_) {
-    new_start_time =
-        time_range.start - (time_range.start - start_time_) % bucket_interval_;
-  }
-  return std::make_shared<SumColumn>(
-      std::vector<double>(buckets_.begin() + start_bucket,
-                          buckets_.begin() + end_bucket),
-      new_start_time, bucket_interval_);
-}
-
 void SumColumn::Write(const InputTimeSeries& time_series) {
   assert(std::ranges::is_sorted(time_series, {}, &Record::timestamp));
   if (buckets_.empty()) {
@@ -131,7 +257,18 @@ void SumColumn::Write(const InputTimeSeries& time_series) {
   }
 }
 
-void SumColumn::ScaleBuckets(Duration bucket_interval) {
+CountColumn::CountColumn(Duration bucket_interval)
+    : AggregateColumn(bucket_interval) {}
+
+CountColumn::CountColumn(std::vector<double> buckets,
+                         const TimePoint& start_time, Duration bucket_interval)
+    : AggregateColumn(std::move(buckets), start_time, bucket_interval) {}
+
+ColumnType CountColumn::GetType() const {
+  return ColumnType::kCount;
+}
+
+void CountColumn::ScaleBuckets(Duration bucket_interval) {
   assert(bucket_interval % bucket_interval_ == 0);
   auto scale = bucket_interval / bucket_interval_;
   auto new_buckets_sz = buckets_.size() / scale;
@@ -139,19 +276,19 @@ void SumColumn::ScaleBuckets(Duration bucket_interval) {
     ++new_buckets_sz;
   }
 
-  double sum = 0;
+  size_t count = 0;
   size_t pos = 0;
   for (size_t i = 0; i < buckets_.size(); ++i) {
-    sum += buckets_[i];
+    count += buckets_[i];
     if ((start_time_ + bucket_interval_ * i) % bucket_interval ==
         bucket_interval - 1) {
-      buckets_[pos++] = sum;
-      sum = 0;
+      buckets_[pos++] = count;
+      count = 0;
     }
   }
 
-  if (sum != 0) {
-    buckets_[pos++] = sum;
+  if (count != 0) {
+    buckets_[pos++] = count;
   }
 
   assert(pos == new_buckets_sz);
@@ -161,34 +298,304 @@ void SumColumn::ScaleBuckets(Duration bucket_interval) {
   buckets_.resize(new_buckets_sz);
 }
 
-std::optional<size_t> SumColumn::GetBucketIdx(TimePoint timestamp) const {
-  if (timestamp < start_time_) {
-    return 0;
+void CountColumn::Merge(Column column) {
+  if (!column) {
+    return;
+  }
+  auto count_column = std::dynamic_pointer_cast<CountColumn>(column);
+  if (!count_column) {
+    throw std::runtime_error("Can't merge columns of different types");
+  }
+  if (this == count_column.get()) {
+    return;
+  }
+  if (count_column->bucket_interval_ != bucket_interval_) {
+    throw std::runtime_error(
+        "Can't merge columns with different bucket "
+        "intervals");
+  }
+  if (buckets_.empty()) {
+    buckets_ = count_column->buckets_;
+    start_time_ = count_column->start_time_;
+    return;
+  }
+  if (count_column->buckets_.empty()) {
+    return;
+  }
+  if (count_column->start_time_ < start_time_) {
+    throw std::runtime_error("Wrong merge order");
   }
 
-  auto time_range = GetTimeRange();
-  if (timestamp >= time_range.end) {
-    return buckets_.size();
+  auto count_column_time_range = count_column->GetTimeRange();
+  auto intersection_start_opt = GetBucketIdx(count_column_time_range.start);
+  auto intersection_end_opt = GetBucketIdx(count_column_time_range.end);
+  auto intersection_end =
+      intersection_end_opt ? *intersection_end_opt : buckets_.size();
+  auto intersection_start =
+      intersection_end_opt ? *intersection_start_opt : buckets_.size();
+  for (size_t i = intersection_start; i < intersection_end; ++i) {
+    buckets_[i] += count_column->buckets_[i - intersection_start];
   }
 
-  return (timestamp - start_time_) / bucket_interval_;
+  auto cur_time_range = GetTimeRange();
+  if (count_column->start_time_ > cur_time_range.end) {
+    auto to_insert_zeroes =
+        (count_column->start_time_ - cur_time_range.end) / bucket_interval_;
+    for (size_t i = 0; i < to_insert_zeroes; ++i) {
+      buckets_.push_back(0);
+    }
+  }
+
+  auto to_skip = intersection_start ? intersection_end - intersection_start : 0;
+  for (const auto& val : std::views::drop(count_column->buckets_, to_skip)) {
+    buckets_.push_back(val);
+  }
 }
 
-std::vector<Value> SumColumn::GetValues() const {
-  return buckets_;
+void CountColumn::Write(const InputTimeSeries& time_series) {
+  assert(std::ranges::is_sorted(time_series, {}, &Record::timestamp));
+  if (buckets_.empty()) {
+    start_time_ = time_series.front().timestamp -
+                  time_series.front().timestamp % bucket_interval_;
+  }
+  assert(start_time_ % bucket_interval_ == 0);
+  assert(time_series.front().timestamp >= start_time_);
+  auto needed_size =
+      (time_series.back().timestamp + 1 - start_time_ + bucket_interval_ - 1) /
+      bucket_interval_;
+  buckets_.resize(needed_size);
+  for (const auto& record : time_series) {
+    auto idx = *GetBucketIdx(record.timestamp);
+    ++buckets_[idx];
+  }
 }
 
-TimeRange SumColumn::GetTimeRange() const {
-  return {start_time_, start_time_ + buckets_.size() * bucket_interval_};
+MinColumn::MinColumn(Duration bucket_interval)
+    : AggregateColumn(bucket_interval) {}
+
+MinColumn::MinColumn(std::vector<double> buckets, const TimePoint& start_time,
+                     Duration bucket_interval)
+    : AggregateColumn(std::move(buckets), start_time, bucket_interval) {}
+
+ColumnType MinColumn::GetType() const {
+  return ColumnType::kMin;
 }
 
-Column SumColumn::Extract() {
-  auto sum_column = std::make_shared<SumColumn>(std::move(buckets_),
-                                                start_time_, bucket_interval_);
-  buckets_ = {};
-  start_time_ = 0;
-  auto read_column = std::static_pointer_cast<IReadColumn>(sum_column);
-  return std::static_pointer_cast<IColumn>(read_column);
+void MinColumn::ScaleBuckets(Duration bucket_interval) {
+  assert(bucket_interval % bucket_interval_ == 0);
+  auto scale = bucket_interval / bucket_interval_;
+  auto new_buckets_sz = buckets_.size() / scale;
+  if (start_time_ % bucket_interval != 0) {
+    ++new_buckets_sz;
+  }
+
+  double min = std::numeric_limits<double>::max();
+  size_t pos = 0;
+  for (size_t i = 0; i < buckets_.size(); ++i) {
+    min = std::min(min, buckets_[i]);
+    if ((start_time_ + bucket_interval_ * i) % bucket_interval ==
+        bucket_interval - 1) {
+      buckets_[pos++] = min;
+      min = std::numeric_limits<double>::max();
+    }
+  }
+
+  if (min != std::numeric_limits<double>::max()) {
+    buckets_[pos++] = min;
+  }
+
+  assert(pos == new_buckets_sz);
+
+  start_time_ = start_time_ - start_time_ % bucket_interval;
+  bucket_interval_ = bucket_interval;
+  buckets_.resize(new_buckets_sz);
+}
+
+void MinColumn::Merge(Column column) {
+  if (!column) {
+    return;
+  }
+  auto min_column = std::dynamic_pointer_cast<MinColumn>(column);
+  if (!min_column) {
+    throw std::runtime_error("Can't merge columns of different types");
+  }
+  if (this == min_column.get()) {
+    return;
+  }
+  if (min_column->bucket_interval_ != bucket_interval_) {
+    throw std::runtime_error(
+        "Can't merge columns with different bucket "
+        "intervals");
+  }
+  if (buckets_.empty()) {
+    buckets_ = min_column->buckets_;
+    start_time_ = min_column->start_time_;
+    return;
+  }
+  if (min_column->buckets_.empty()) {
+    return;
+  }
+  if (min_column->start_time_ < start_time_) {
+    throw std::runtime_error("Wrong merge order");
+  }
+
+  auto min_column_time_range = min_column->GetTimeRange();
+  auto intersection_start_opt = GetBucketIdx(min_column_time_range.start);
+  auto intersection_end_opt = GetBucketIdx(min_column_time_range.end);
+  auto intersection_end =
+      intersection_end_opt ? *intersection_end_opt : buckets_.size();
+  auto intersection_start =
+      intersection_end_opt ? *intersection_start_opt : buckets_.size();
+  for (size_t i = intersection_start; i < intersection_end; ++i) {
+    buckets_[i] =
+        std::min(buckets_[i], min_column->buckets_[i - intersection_start]);
+  }
+
+  auto cur_time_range = GetTimeRange();
+  if (min_column->start_time_ > cur_time_range.end) {
+    auto to_insert_max =
+        (min_column->start_time_ - cur_time_range.end) / bucket_interval_;
+    for (size_t i = 0; i < to_insert_max; ++i) {
+      buckets_.push_back(std::numeric_limits<double>::max());
+    }
+  }
+
+  auto to_skip = intersection_start ? intersection_end - intersection_start : 0;
+  for (const auto& val : std::views::drop(min_column->buckets_, to_skip)) {
+    buckets_.push_back(val);
+  }
+}
+
+void MinColumn::Write(const InputTimeSeries& time_series) {
+  assert(std::ranges::is_sorted(time_series, {}, &Record::timestamp));
+  if (buckets_.empty()) {
+    start_time_ = time_series.front().timestamp -
+                  time_series.front().timestamp % bucket_interval_;
+  }
+  assert(start_time_ % bucket_interval_ == 0);
+  assert(time_series.front().timestamp >= start_time_);
+  auto needed_size =
+      (time_series.back().timestamp + 1 - start_time_ + bucket_interval_ - 1) /
+      bucket_interval_;
+  buckets_.assign(needed_size, std::numeric_limits<double>::max());
+  for (const auto& record : time_series) {
+    auto idx = *GetBucketIdx(record.timestamp);
+    buckets_[idx] = std::min(buckets_[idx], record.value);
+  }
+}
+
+MaxColumn::MaxColumn(Duration bucket_interval)
+    : AggregateColumn(bucket_interval) {}
+
+MaxColumn::MaxColumn(std::vector<double> buckets, const TimePoint& start_time,
+                     Duration bucket_interval)
+    : AggregateColumn(std::move(buckets), start_time, bucket_interval) {}
+
+ColumnType MaxColumn::GetType() const {
+  return ColumnType::kMax;
+}
+
+void MaxColumn::ScaleBuckets(Duration bucket_interval) {
+  assert(bucket_interval % bucket_interval_ == 0);
+  auto scale = bucket_interval / bucket_interval_;
+  auto new_buckets_sz = buckets_.size() / scale;
+  if (start_time_ % bucket_interval != 0) {
+    ++new_buckets_sz;
+  }
+
+  double max = std::numeric_limits<double>::min();
+  size_t pos = 0;
+  for (size_t i = 0; i < buckets_.size(); ++i) {
+    max = std::max(max, buckets_[i]);
+    if ((start_time_ + bucket_interval_ * i) % bucket_interval ==
+        bucket_interval - 1) {
+      buckets_[pos++] = max;
+      max = std::numeric_limits<double>::min();
+    }
+  }
+
+  if (max != std::numeric_limits<double>::min()) {
+    buckets_[pos++] = max;
+  }
+
+  assert(pos == new_buckets_sz);
+
+  start_time_ = start_time_ - start_time_ % bucket_interval;
+  bucket_interval_ = bucket_interval;
+  buckets_.resize(new_buckets_sz);
+}
+
+void MaxColumn::Merge(Column column) {
+  if (!column) {
+    return;
+  }
+  auto max_column = std::dynamic_pointer_cast<MaxColumn>(column);
+  if (!max_column) {
+    throw std::runtime_error("Can't merge columns of different types");
+  }
+  if (this == max_column.get()) {
+    return;
+  }
+  if (max_column->bucket_interval_ != bucket_interval_) {
+    throw std::runtime_error(
+        "Can't merge columns with different bucket "
+        "intervals");
+  }
+  if (buckets_.empty()) {
+    buckets_ = max_column->buckets_;
+    start_time_ = max_column->start_time_;
+    return;
+  }
+  if (max_column->buckets_.empty()) {
+    return;
+  }
+  if (max_column->start_time_ < start_time_) {
+    throw std::runtime_error("Wrong merge order");
+  }
+
+  auto max_column_time_range = max_column->GetTimeRange();
+  auto intersection_start_opt = GetBucketIdx(max_column_time_range.start);
+  auto intersection_end_opt = GetBucketIdx(max_column_time_range.end);
+  auto intersection_end =
+      intersection_end_opt ? *intersection_end_opt : buckets_.size();
+  auto intersection_start =
+      intersection_end_opt ? *intersection_start_opt : buckets_.size();
+  for (size_t i = intersection_start; i < intersection_end; ++i) {
+    buckets_[i] =
+        std::max(buckets_[i], max_column->buckets_[i - intersection_start]);
+  }
+
+  auto cur_time_range = GetTimeRange();
+  if (max_column->start_time_ > cur_time_range.end) {
+    auto to_insert_min =
+        (max_column->start_time_ - cur_time_range.end) / bucket_interval_;
+    for (size_t i = 0; i < to_insert_min; ++i) {
+      buckets_.push_back(std::numeric_limits<double>::min());
+    }
+  }
+
+  auto to_skip = intersection_start ? intersection_end - intersection_start : 0;
+  for (const auto& val : std::views::drop(max_column->buckets_, to_skip)) {
+    buckets_.push_back(val);
+  }
+}
+
+void MaxColumn::Write(const InputTimeSeries& time_series) {
+  assert(std::ranges::is_sorted(time_series, {}, &Record::timestamp));
+  if (buckets_.empty()) {
+    start_time_ = time_series.front().timestamp -
+                  time_series.front().timestamp % bucket_interval_;
+  }
+  assert(start_time_ % bucket_interval_ == 0);
+  assert(time_series.front().timestamp >= start_time_);
+  auto needed_size =
+      (time_series.back().timestamp + 1 - start_time_ + bucket_interval_ - 1) /
+      bucket_interval_;
+  buckets_.assign(needed_size, std::numeric_limits<double>::min());
+  for (const auto& record : time_series) {
+    auto idx = *GetBucketIdx(record.timestamp);
+    buckets_[idx] = std::max(buckets_[idx], record.value);
+  }
 }
 
 RawTimestampsColumn::RawTimestampsColumn(std::vector<TimePoint> timestamps)
@@ -402,12 +809,16 @@ Column CreateAggregatedColumn(ColumnType column_type,
                               Duration bucket_interval) {
   switch (column_type) {
     case ColumnType::kSum: {
-      auto sum_column = std::make_shared<SumColumn>(bucket_interval);
-      // some strange things here, because in cpp we don't have such thing as
-      // interface, so in case of diamond interface inheritance we need to
-      // explicitly cast to the base class
-      auto read_column = std::static_pointer_cast<IReadColumn>(sum_column);
-      return std::static_pointer_cast<IColumn>(read_column);
+      return CreateAggregatedColumn<SumColumn>(bucket_interval);
+    }
+    case ColumnType::kCount: {
+      return CreateAggregatedColumn<CountColumn>(bucket_interval);
+    }
+    case ColumnType::kMin: {
+      return CreateAggregatedColumn<MinColumn>(bucket_interval);
+    }
+    case ColumnType::kMax: {
+      return CreateAggregatedColumn<MaxColumn>(bucket_interval);
     }
     default:
       throw std::runtime_error("Unsupported column type");
@@ -429,14 +840,16 @@ Column FromBytes(const CompressedBytes& bytes, ColumnType column_type) {
           std::vector<TimePoint>(data, data + sz));
     }
     case ColumnType::kSum: {
-      auto reader = CompressedBytesReader(bytes);
-      auto bucket_interval = reader.Read<size_t>();
-      auto start = reader.Read<TimePoint>();
-      auto buckets = reader.ReadAll<Value>();
-      auto sum_column =
-          std::make_shared<SumColumn>(buckets, start, bucket_interval);
-      auto read_column = std::static_pointer_cast<IReadColumn>(sum_column);
-      return std::static_pointer_cast<IColumn>(read_column);
+      return AggregateFromBytes<SumColumn>(bytes);
+    }
+    case ColumnType::kCount: {
+      return AggregateFromBytes<CountColumn>(bytes);
+    }
+    case ColumnType::kMin: {
+      return AggregateFromBytes<MinColumn>(bytes);
+    }
+    case ColumnType::kMax: {
+      return AggregateFromBytes<MaxColumn>(bytes);
     }
     default:
       throw std::runtime_error("Unsupported column type");

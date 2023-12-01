@@ -101,40 +101,82 @@ class ISerializableColumn : public IColumn {
   virtual CompressedBytes ToBytes() const = 0;
 };
 
-class IAggregateColumn : public ISerializableColumn {
- public:
-  virtual void ScaleBuckets(Duration bucket_interval) = 0;
-};
-
 using Column = std::shared_ptr<IColumn>;
 using ReadColumn = std::shared_ptr<IReadColumn>;
+using ReadColumns = std::vector<ReadColumn>;
+
+class AggregateColumn : public ISerializableColumn, public IReadColumn {
+ public:
+  explicit AggregateColumn(Duration bucket_interval);
+  AggregateColumn(std::vector<double> buckets, const TimePoint& start_time,
+                  Duration bucket_interval);
+  ColumnType GetType() const override;
+  CompressedBytes ToBytes() const override;
+  ReadColumn Read(const TimeRange& time_range) const override;
+  std::vector<Value> GetValues() const override;
+  TimeRange GetTimeRange() const override;
+  Column Extract() override;
+  virtual void ScaleBuckets(Duration bucket_interval);
+  void Merge(Column column) override;
+  void Write(const InputTimeSeries& time_series) override;
+
+  ~AggregateColumn() override = default;
+
+ protected:
+  std::optional<size_t> GetBucketIdx(TimePoint timestamp) const;
+
+ protected:
+  std::vector<Value> buckets_;
+  TimePoint start_time_;
+  Duration bucket_interval_;
+};
+
 using SerializableColumn = std::shared_ptr<ISerializableColumn>;
 using Columns = std::vector<Column>;
-using ReadColumns = std::vector<ReadColumn>;
 using SerializableColumns = std::vector<SerializableColumn>;
 
-class SumColumn : public IReadColumn, public IAggregateColumn {
+class SumColumn : public AggregateColumn {
  public:
   explicit SumColumn(Duration bucket_interval);
   SumColumn(std::vector<double> buckets, const TimePoint& start_time,
             Duration bucket_interval);
   ColumnType GetType() const override;
-  CompressedBytes ToBytes() const override;
-  void Merge(Column column) override;
-  ReadColumn Read(const TimeRange& time_range) const override;
-  void Write(const InputTimeSeries& time_series) override;
-  std::vector<Value> GetValues() const override;
-  TimeRange GetTimeRange() const override;
-  Column Extract() override;
   void ScaleBuckets(Duration bucket_interval) override;
+  void Merge(Column column) override;
+  void Write(const InputTimeSeries& time_series) override;
+};
 
- private:
-  std::optional<size_t> GetBucketIdx(TimePoint timestamp) const;
+class CountColumn : public AggregateColumn {
+ public:
+  explicit CountColumn(Duration bucket_interval);
+  CountColumn(std::vector<double> buckets, const TimePoint& start_time,
+              Duration bucket_interval);
+  ColumnType GetType() const override;
+  void ScaleBuckets(Duration bucket_interval) override;
+  void Merge(Column column) override;
+  void Write(const InputTimeSeries& time_series) override;
+};
 
- private:
-  std::vector<Value> buckets_;
-  TimePoint start_time_;
-  Duration bucket_interval_;
+class MinColumn : public AggregateColumn {
+ public:
+  explicit MinColumn(Duration bucket_interval);
+  MinColumn(std::vector<double> buckets, const TimePoint& start_time,
+            Duration bucket_interval);
+  ColumnType GetType() const override;
+  void ScaleBuckets(Duration bucket_interval) override;
+  void Merge(Column column) override;
+  void Write(const InputTimeSeries& time_series) override;
+};
+
+class MaxColumn : public AggregateColumn {
+ public:
+  explicit MaxColumn(Duration bucket_interval);
+  MaxColumn(std::vector<double> buckets, const TimePoint& start_time,
+            Duration bucket_interval);
+  ColumnType GetType() const override;
+  void ScaleBuckets(Duration bucket_interval) override;
+  void Merge(Column column) override;
+  void Write(const InputTimeSeries& time_series) override;
 };
 
 class RawTimestampsColumn : public ISerializableColumn {
@@ -190,9 +232,30 @@ class ReadRawColumn : public IReadColumn {
   std::shared_ptr<RawValuesColumn> values_column_;
 };
 
+template <typename T>
+Column CreateAggregatedColumn(Duration bucket_interval) {
+  auto col = std::make_shared<T>(bucket_interval);
+  // some strange things here, because in cpp we don't have such thing as
+  // interface, so in case of diamond interface inheritance we need to
+  // explicitly cast to the base class
+  auto read_column = std::static_pointer_cast<IReadColumn>(col);
+  return std::static_pointer_cast<IColumn>(read_column);
+}
+
 Column CreateAggregatedColumn(ColumnType column_type, Duration bucket_interval);
 
 Column CreateRawColumn(ColumnType column_type);
+
+template <typename T>
+Column AggregateFromBytes(const CompressedBytes& bytes) {
+  auto reader = CompressedBytesReader(bytes);
+  auto bucket_interval = reader.Read<size_t>();
+  auto start = reader.Read<TimePoint>();
+  auto buckets = reader.ReadAll<Value>();
+  auto col = std::make_shared<T>(buckets, start, bucket_interval);
+  auto read_column = std::static_pointer_cast<IReadColumn>(col);
+  return std::static_pointer_cast<IColumn>(read_column);
+}
 
 Column FromBytes(const CompressedBytes& bytes, ColumnType column_type);
 
