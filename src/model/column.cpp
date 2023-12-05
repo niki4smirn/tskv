@@ -749,6 +749,13 @@ Column RawTimestampsColumn::Extract() {
   return std::make_shared<RawTimestampsColumn>(timestamps);
 }
 
+TimeRange RawTimestampsColumn::GetTimeRange() const {
+  if (timestamps_.empty()) {
+    return {};
+  }
+  return {timestamps_.front(), timestamps_.back() + 1};
+}
+
 RawValuesColumn::RawValuesColumn(std::vector<Value> values)
     : values_(std::move(values)) {}
 

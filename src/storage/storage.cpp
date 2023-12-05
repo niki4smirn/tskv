@@ -11,6 +11,10 @@ bool ValidateOptions(const MetricStorage::Options& options) {
     }
   }
 
+  if (!memtable_options.capacity && !memtable_options.max_age) {
+    return false;
+  }
+
   // bucket intervals should be mulitples of each other
   if (!persistent_storage_options.levels.empty() &&
       persistent_storage_options.levels[0].bucket_interval %

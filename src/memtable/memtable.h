@@ -18,7 +18,8 @@ class Memtable {
  public:
   struct Options {
     Duration bucket_inteval;
-    size_t capacity;
+    std::optional<size_t> capacity;
+    std::optional<Duration> max_age;
     bool store_raw{false};
   };
 

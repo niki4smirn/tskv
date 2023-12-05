@@ -238,6 +238,7 @@ class RawTimestampsColumn : public ISerializableColumn {
   // not the best way to return timestamps, but I didn't want to break the interface
   std::vector<Value> GetValues() const override;
   Column Extract() override;
+  TimeRange GetTimeRange() const;
 
  private:
   std::vector<TimePoint> timestamps_;

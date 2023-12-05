@@ -735,10 +735,12 @@ TEST(RawTimestamps, Write) {
   column.Write({{1, 1}, {2, 2}, {2, 1}, {3, 1}, {3, 10}, {4, 2}, {4, -1}});
   auto expected = std::vector<double>{1, 2, 2, 3, 3, 4, 4};
   EXPECT_EQ(column.GetValues(), expected);
+  EXPECT_EQ(column.GetTimeRange(), tskv::TimeRange(1, 5));
 
   column.Write({{4, 3}, {5, 11}, {6, 8}, {6, 7}});
   expected = std::vector<double>{1, 2, 2, 3, 3, 4, 4, 4, 5, 6, 6};
   EXPECT_EQ(column.GetValues(), expected);
+  EXPECT_EQ(column.GetTimeRange(), tskv::TimeRange(1, 7));
 }
 
 TEST(RawTimestamps, Merge) {
@@ -747,6 +749,7 @@ TEST(RawTimestamps, Merge) {
   column1.Merge(std::make_shared<tskv::RawTimestampsColumn>(column2));
   auto expected = std::vector<double>{1, 2, 3, 4, 5, 5, 5, 6, 8, 14};
   EXPECT_EQ(column1.GetValues(), expected);
+  EXPECT_EQ(column1.GetTimeRange(), tskv::TimeRange(1, 15));
 }
 
 TEST(RawTimestamps, Extract) {
@@ -756,6 +759,7 @@ TEST(RawTimestamps, Extract) {
   EXPECT_EQ(result->GetValues(), expected);
   EXPECT_EQ(result->GetType(), tskv::ColumnType::kRawTimestamps);
   EXPECT_TRUE(column.GetValues().empty());
+  EXPECT_EQ(column.GetTimeRange(), tskv::TimeRange());
 }
 
 TEST(RawTimestamps, ToBytes) {
@@ -775,6 +779,8 @@ TEST(RawTimestamps, FromBytes) {
   auto expected = std::vector<double>{1, 2, 3, 4, 5};
   EXPECT_EQ(column->GetValues(), expected);
   EXPECT_EQ(column->GetType(), tskv::ColumnType::kRawTimestamps);
+  auto raw_column = std::static_pointer_cast<tskv::RawTimestampsColumn>(column);
+  EXPECT_EQ(raw_column->GetTimeRange(), tskv::TimeRange(1, 6));
 }
 
 TEST(RawValues, Basic) {

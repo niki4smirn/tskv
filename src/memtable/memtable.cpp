@@ -74,7 +74,33 @@ Columns Memtable::ExtractColumns() {
 }
 
 bool Memtable::NeedFlush() const {
-  return size_ >= options_.capacity;
+  if (options_.capacity && size_ >= *options_.capacity) {
+    return true;
+  }
+
+  auto ts_it = std::ranges::find_if(columns_, [](const auto& column) {
+    return column->GetType() != ColumnType::kRawValues;
+  });
+  if (ts_it == columns_.end()) {
+    return false;
+  }
+  const auto& ts_column = *ts_it;
+  Duration age;
+  if (ts_column->GetType() == ColumnType::kRawTimestamps) {
+    auto raw_ts_column =
+        std::dynamic_pointer_cast<RawTimestampsColumn>(ts_column);
+    age = raw_ts_column->GetTimeRange().GetDuration();
+  } else {
+    auto ser_ts_column =
+        std::dynamic_pointer_cast<ISerializableColumn>(ts_column);
+    auto agg_ts_column =
+        std::dynamic_pointer_cast<IAggregateColumn>(ser_ts_column);
+    age = agg_ts_column->GetTimeRange().GetDuration();
+  }
+  if (options_.max_age && age >= *options_.max_age) {
+    return true;
+  }
+  return false;
 }
 
 Memtable::ReadResult Memtable::ReadRawValues(
