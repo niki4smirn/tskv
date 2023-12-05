@@ -92,7 +92,7 @@ void Level::MovePagesFrom(Level& other) {
         Write(column);
       } else {
         auto aggreagte_column =
-            std::dynamic_pointer_cast<AggregateColumn>(column);
+            std::dynamic_pointer_cast<IAggregateColumn>(column);
         aggreagte_column->ScaleBuckets(options_.bucket_interval);
         Write(aggreagte_column);
       }

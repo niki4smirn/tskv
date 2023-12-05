@@ -105,28 +105,31 @@ using Column = std::shared_ptr<IColumn>;
 using ReadColumn = std::shared_ptr<IReadColumn>;
 using ReadColumns = std::vector<ReadColumn>;
 
-class AggregateColumn : public ISerializableColumn, public IReadColumn {
+class IAggregateColumn : public ISerializableColumn, public IReadColumn {
+ public:
+  virtual void ScaleBuckets(Duration bucket_interval) = 0;
+};
+
+class AggregateColumn {
  public:
   explicit AggregateColumn(Duration bucket_interval);
   AggregateColumn(std::vector<double> buckets, const TimePoint& start_time,
                   Duration bucket_interval);
-  ColumnType GetType() const override;
-  CompressedBytes ToBytes() const override;
-  ReadColumn Read(const TimeRange& time_range) const override;
-  std::vector<Value> GetValues() const override;
-  TimeRange GetTimeRange() const override;
-  Column Extract() override;
-  virtual void ScaleBuckets(Duration bucket_interval);
-  void Merge(Column column) override;
-  void Write(const InputTimeSeries& time_series) override;
+  ReadColumn Read(const TimeRange& time_range, ColumnType column_type) const;
+  std::vector<Value> GetValues() const;
+  TimeRange GetTimeRange() const;
+  Column Extract(ColumnType column_type);
+  CompressedBytes ToBytes() const;
 
-  ~AggregateColumn() override = default;
-
- protected:
   std::optional<size_t> GetBucketIdx(TimePoint timestamp) const;
 
- protected:
-  std::vector<Value> buckets_;
+  friend class SumColumn;
+  friend class CountColumn;
+  friend class MinColumn;
+  friend class MaxColumn;
+
+ private:
+  std::vector<double> buckets_;
   TimePoint start_time_;
   Duration bucket_interval_;
 };
@@ -135,7 +138,7 @@ using SerializableColumn = std::shared_ptr<ISerializableColumn>;
 using Columns = std::vector<Column>;
 using SerializableColumns = std::vector<SerializableColumn>;
 
-class SumColumn : public AggregateColumn {
+class SumColumn : public IAggregateColumn {
  public:
   explicit SumColumn(Duration bucket_interval);
   SumColumn(std::vector<double> buckets, const TimePoint& start_time,
@@ -144,9 +147,20 @@ class SumColumn : public AggregateColumn {
   void ScaleBuckets(Duration bucket_interval) override;
   void Merge(Column column) override;
   void Write(const InputTimeSeries& time_series) override;
+  ReadColumn Read(const TimeRange& time_range) const override;
+  std::vector<Value> GetValues() const override;
+  TimeRange GetTimeRange() const override;
+  Column Extract() override;
+  CompressedBytes ToBytes() const override;
+
+ private:
+  AggregateColumn column_;
+  std::vector<double>& buckets_;
+  TimePoint& start_time_;
+  Duration& bucket_interval_;
 };
 
-class CountColumn : public AggregateColumn {
+class CountColumn : public IAggregateColumn {
  public:
   explicit CountColumn(Duration bucket_interval);
   CountColumn(std::vector<double> buckets, const TimePoint& start_time,
@@ -155,9 +169,20 @@ class CountColumn : public AggregateColumn {
   void ScaleBuckets(Duration bucket_interval) override;
   void Merge(Column column) override;
   void Write(const InputTimeSeries& time_series) override;
+  ReadColumn Read(const TimeRange& time_range) const override;
+  std::vector<Value> GetValues() const override;
+  TimeRange GetTimeRange() const override;
+  Column Extract() override;
+  CompressedBytes ToBytes() const override;
+
+ private:
+  AggregateColumn column_;
+  std::vector<double>& buckets_;
+  TimePoint& start_time_;
+  Duration& bucket_interval_;
 };
 
-class MinColumn : public AggregateColumn {
+class MinColumn : public IAggregateColumn {
  public:
   explicit MinColumn(Duration bucket_interval);
   MinColumn(std::vector<double> buckets, const TimePoint& start_time,
@@ -166,9 +191,20 @@ class MinColumn : public AggregateColumn {
   void ScaleBuckets(Duration bucket_interval) override;
   void Merge(Column column) override;
   void Write(const InputTimeSeries& time_series) override;
+  ReadColumn Read(const TimeRange& time_range) const override;
+  std::vector<Value> GetValues() const override;
+  TimeRange GetTimeRange() const override;
+  Column Extract() override;
+  CompressedBytes ToBytes() const override;
+
+ private:
+  AggregateColumn column_;
+  std::vector<double>& buckets_;
+  TimePoint& start_time_;
+  Duration& bucket_interval_;
 };
 
-class MaxColumn : public AggregateColumn {
+class MaxColumn : public IAggregateColumn {
  public:
   explicit MaxColumn(Duration bucket_interval);
   MaxColumn(std::vector<double> buckets, const TimePoint& start_time,
@@ -177,6 +213,17 @@ class MaxColumn : public AggregateColumn {
   void ScaleBuckets(Duration bucket_interval) override;
   void Merge(Column column) override;
   void Write(const InputTimeSeries& time_series) override;
+  ReadColumn Read(const TimeRange& time_range) const override;
+  std::vector<Value> GetValues() const override;
+  TimeRange GetTimeRange() const override;
+  Column Extract() override;
+  CompressedBytes ToBytes() const override;
+
+ private:
+  AggregateColumn column_;
+  std::vector<double>& buckets_;
+  TimePoint& start_time_;
+  Duration& bucket_interval_;
 };
 
 class RawTimestampsColumn : public ISerializableColumn {

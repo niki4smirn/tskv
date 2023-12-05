@@ -60,21 +60,29 @@ TEST(SumColumn, Read) {
     EXPECT_EQ(column.Read(tskv::TimeRange(1, 6))->GetValues(), expected);
     EXPECT_EQ(column.Read(tskv::TimeRange(1, 6))->GetTimeRange(),
               tskv::TimeRange(1, 6));
+    EXPECT_EQ(column.Read(tskv::TimeRange(1, 6))->GetType(),
+              tskv::ColumnType::kSum);
 
     expected = std::vector<double>{1, 2, 3, 4};
     EXPECT_EQ(column.Read(tskv::TimeRange(1, 5))->GetValues(), expected);
     EXPECT_EQ(column.Read(tskv::TimeRange(1, 5))->GetTimeRange(),
               tskv::TimeRange(1, 5));
+    EXPECT_EQ(column.Read(tskv::TimeRange(1, 5))->GetType(),
+              tskv::ColumnType::kSum);
 
     expected = std::vector<double>{2, 3, 4, 5};
     EXPECT_EQ(column.Read(tskv::TimeRange(2, 6))->GetValues(), expected);
     EXPECT_EQ(column.Read(tskv::TimeRange(2, 6))->GetTimeRange(),
               tskv::TimeRange(2, 6));
+    EXPECT_EQ(column.Read(tskv::TimeRange(2, 6))->GetType(),
+              tskv::ColumnType::kSum);
 
     expected = std::vector<double>{3};
     EXPECT_EQ(column.Read(tskv::TimeRange(3, 4))->GetValues(), expected);
     EXPECT_EQ(column.Read(tskv::TimeRange(3, 4))->GetTimeRange(),
               tskv::TimeRange(3, 4));
+    EXPECT_EQ(column.Read(tskv::TimeRange(3, 4))->GetType(),
+              tskv::ColumnType::kSum);
   }
   {
     tskv::SumColumn column(std::vector<double>{1, 2, 3, 4, 5},
@@ -83,38 +91,60 @@ TEST(SumColumn, Read) {
     EXPECT_EQ(column.Read(tskv::TimeRange(2, 12))->GetValues(), expected);
     EXPECT_EQ(column.Read(tskv::TimeRange(2, 12))->GetTimeRange(),
               tskv::TimeRange(2, 12));
+    EXPECT_EQ(column.Read(tskv::TimeRange(2, 12))->GetType(),
+              tskv::ColumnType::kSum);
+
     EXPECT_EQ(column.Read(tskv::TimeRange(3, 12))->GetValues(), expected);
     EXPECT_EQ(column.Read(tskv::TimeRange(3, 12))->GetTimeRange(),
               tskv::TimeRange(2, 12));
+    EXPECT_EQ(column.Read(tskv::TimeRange(3, 12))->GetType(),
+              tskv::ColumnType::kSum);
+
     EXPECT_EQ(column.Read(tskv::TimeRange(1, 100))->GetValues(), expected);
     EXPECT_EQ(column.Read(tskv::TimeRange(1, 100))->GetTimeRange(),
               tskv::TimeRange(2, 12));
+    EXPECT_EQ(column.Read(tskv::TimeRange(1, 100))->GetType(),
+              tskv::ColumnType::kSum);
+
     EXPECT_EQ(column.Read(tskv::TimeRange(2, 11))->GetValues(), expected);
     EXPECT_EQ(column.Read(tskv::TimeRange(2, 11))->GetTimeRange(),
               tskv::TimeRange(2, 12));
+    EXPECT_EQ(column.Read(tskv::TimeRange(2, 11))->GetType(),
+              tskv::ColumnType::kSum);
 
     expected = std::vector<double>{1, 2, 3, 4};
     EXPECT_EQ(column.Read(tskv::TimeRange(2, 10))->GetValues(), expected);
     EXPECT_EQ(column.Read(tskv::TimeRange(2, 10))->GetTimeRange(),
               tskv::TimeRange(2, 10));
+    EXPECT_EQ(column.Read(tskv::TimeRange(2, 10))->GetType(),
+              tskv::ColumnType::kSum);
 
     expected = std::vector<double>{2, 3, 4, 5};
     EXPECT_EQ(column.Read(tskv::TimeRange(4, 12))->GetValues(), expected);
     EXPECT_EQ(column.Read(tskv::TimeRange(4, 12))->GetTimeRange(),
               tskv::TimeRange(4, 12));
+    EXPECT_EQ(column.Read(tskv::TimeRange(4, 12))->GetType(),
+              tskv::ColumnType::kSum);
+
     EXPECT_EQ(column.Read(tskv::TimeRange(5, 12))->GetValues(), expected);
     EXPECT_EQ(column.Read(tskv::TimeRange(5, 12))->GetTimeRange(),
               tskv::TimeRange(4, 12));
+    EXPECT_EQ(column.Read(tskv::TimeRange(5, 12))->GetType(),
+              tskv::ColumnType::kSum);
 
     expected = std::vector<double>{3};
     EXPECT_EQ(column.Read(tskv::TimeRange(6, 8))->GetValues(), expected);
     EXPECT_EQ(column.Read(tskv::TimeRange(6, 8))->GetTimeRange(),
               tskv::TimeRange(6, 8));
+    EXPECT_EQ(column.Read(tskv::TimeRange(6, 8))->GetType(),
+              tskv::ColumnType::kSum);
 
     expected = std::vector<double>{3, 4};
     EXPECT_EQ(column.Read(tskv::TimeRange(6, 9))->GetValues(), expected);
     EXPECT_EQ(column.Read(tskv::TimeRange(6, 9))->GetTimeRange(),
               tskv::TimeRange(6, 10));
+    EXPECT_EQ(column.Read(tskv::TimeRange(6, 9))->GetType(),
+              tskv::ColumnType::kSum);
   }
 }
 
@@ -234,21 +264,29 @@ TEST(CountColumn, Read) {
     EXPECT_EQ(column.Read(tskv::TimeRange(1, 6))->GetValues(), expected);
     EXPECT_EQ(column.Read(tskv::TimeRange(1, 6))->GetTimeRange(),
               tskv::TimeRange(1, 6));
+    EXPECT_EQ(column.Read(tskv::TimeRange(1, 6))->GetType(),
+              tskv::ColumnType::kCount);
 
     expected = std::vector<double>{1, 2, 3, 4};
     EXPECT_EQ(column.Read(tskv::TimeRange(1, 5))->GetValues(), expected);
     EXPECT_EQ(column.Read(tskv::TimeRange(1, 5))->GetTimeRange(),
               tskv::TimeRange(1, 5));
+    EXPECT_EQ(column.Read(tskv::TimeRange(1, 5))->GetType(),
+              tskv::ColumnType::kCount);
 
     expected = std::vector<double>{2, 3, 4, 5};
     EXPECT_EQ(column.Read(tskv::TimeRange(2, 6))->GetValues(), expected);
     EXPECT_EQ(column.Read(tskv::TimeRange(2, 6))->GetTimeRange(),
               tskv::TimeRange(2, 6));
+    EXPECT_EQ(column.Read(tskv::TimeRange(2, 6))->GetType(),
+              tskv::ColumnType::kCount);
 
     expected = std::vector<double>{3};
     EXPECT_EQ(column.Read(tskv::TimeRange(3, 4))->GetValues(), expected);
     EXPECT_EQ(column.Read(tskv::TimeRange(3, 4))->GetTimeRange(),
               tskv::TimeRange(3, 4));
+    EXPECT_EQ(column.Read(tskv::TimeRange(3, 4))->GetType(),
+              tskv::ColumnType::kCount);
   }
   {
     tskv::CountColumn column(std::vector<double>{1, 2, 3, 4, 5},
@@ -257,15 +295,26 @@ TEST(CountColumn, Read) {
     EXPECT_EQ(column.Read(tskv::TimeRange(2, 12))->GetValues(), expected);
     EXPECT_EQ(column.Read(tskv::TimeRange(2, 12))->GetTimeRange(),
               tskv::TimeRange(2, 12));
+    EXPECT_EQ(column.Read(tskv::TimeRange(2, 12))->GetType(),
+              tskv::ColumnType::kCount);
+
     EXPECT_EQ(column.Read(tskv::TimeRange(3, 12))->GetValues(), expected);
     EXPECT_EQ(column.Read(tskv::TimeRange(3, 12))->GetTimeRange(),
               tskv::TimeRange(2, 12));
+    EXPECT_EQ(column.Read(tskv::TimeRange(3, 12))->GetType(),
+              tskv::ColumnType::kCount);
+
     EXPECT_EQ(column.Read(tskv::TimeRange(1, 100))->GetValues(), expected);
     EXPECT_EQ(column.Read(tskv::TimeRange(1, 100))->GetTimeRange(),
               tskv::TimeRange(2, 12));
+    EXPECT_EQ(column.Read(tskv::TimeRange(1, 100))->GetType(),
+              tskv::ColumnType::kCount);
+
     EXPECT_EQ(column.Read(tskv::TimeRange(2, 11))->GetValues(), expected);
     EXPECT_EQ(column.Read(tskv::TimeRange(2, 11))->GetTimeRange(),
               tskv::TimeRange(2, 12));
+    EXPECT_EQ(column.Read(tskv::TimeRange(2, 11))->GetType(),
+              tskv::ColumnType::kCount);
   }
 }
 
@@ -386,21 +435,29 @@ TEST(MinColumn, Read) {
     EXPECT_EQ(column.Read(tskv::TimeRange(1, 6))->GetValues(), expected);
     EXPECT_EQ(column.Read(tskv::TimeRange(1, 6))->GetTimeRange(),
               tskv::TimeRange(1, 6));
+    EXPECT_EQ(column.Read(tskv::TimeRange(1, 6))->GetType(),
+              tskv::ColumnType::kMin);
 
     expected = std::vector<double>{1, 2, 3, 4};
     EXPECT_EQ(column.Read(tskv::TimeRange(1, 5))->GetValues(), expected);
     EXPECT_EQ(column.Read(tskv::TimeRange(1, 5))->GetTimeRange(),
               tskv::TimeRange(1, 5));
+    EXPECT_EQ(column.Read(tskv::TimeRange(1, 5))->GetType(),
+              tskv::ColumnType::kMin);
 
     expected = std::vector<double>{2, 3, 4, 5};
     EXPECT_EQ(column.Read(tskv::TimeRange(2, 6))->GetValues(), expected);
     EXPECT_EQ(column.Read(tskv::TimeRange(2, 6))->GetTimeRange(),
               tskv::TimeRange(2, 6));
+    EXPECT_EQ(column.Read(tskv::TimeRange(2, 6))->GetType(),
+              tskv::ColumnType::kMin);
 
     expected = std::vector<double>{3};
     EXPECT_EQ(column.Read(tskv::TimeRange(3, 4))->GetValues(), expected);
     EXPECT_EQ(column.Read(tskv::TimeRange(3, 4))->GetTimeRange(),
               tskv::TimeRange(3, 4));
+    EXPECT_EQ(column.Read(tskv::TimeRange(3, 4))->GetType(),
+              tskv::ColumnType::kMin);
   }
   {
     tskv::MinColumn column(std::vector<double>{1, 2, 3, 4, 5},
@@ -409,15 +466,26 @@ TEST(MinColumn, Read) {
     EXPECT_EQ(column.Read(tskv::TimeRange(2, 12))->GetValues(), expected);
     EXPECT_EQ(column.Read(tskv::TimeRange(2, 12))->GetTimeRange(),
               tskv::TimeRange(2, 12));
+    EXPECT_EQ(column.Read(tskv::TimeRange(2, 12))->GetType(),
+              tskv::ColumnType::kMin);
+
     EXPECT_EQ(column.Read(tskv::TimeRange(3, 12))->GetValues(), expected);
     EXPECT_EQ(column.Read(tskv::TimeRange(3, 12))->GetTimeRange(),
               tskv::TimeRange(2, 12));
+    EXPECT_EQ(column.Read(tskv::TimeRange(3, 12))->GetType(),
+              tskv::ColumnType::kMin);
+
     EXPECT_EQ(column.Read(tskv::TimeRange(1, 100))->GetValues(), expected);
     EXPECT_EQ(column.Read(tskv::TimeRange(1, 100))->GetTimeRange(),
               tskv::TimeRange(2, 12));
+    EXPECT_EQ(column.Read(tskv::TimeRange(1, 100))->GetType(),
+              tskv::ColumnType::kMin);
+
     EXPECT_EQ(column.Read(tskv::TimeRange(2, 11))->GetValues(), expected);
     EXPECT_EQ(column.Read(tskv::TimeRange(2, 11))->GetTimeRange(),
               tskv::TimeRange(2, 12));
+    EXPECT_EQ(column.Read(tskv::TimeRange(2, 11))->GetType(),
+              tskv::ColumnType::kMin);
   }
 }
 
@@ -538,21 +606,29 @@ TEST(MaxColumn, Read) {
     EXPECT_EQ(column.Read(tskv::TimeRange(1, 6))->GetValues(), expected);
     EXPECT_EQ(column.Read(tskv::TimeRange(1, 6))->GetTimeRange(),
               tskv::TimeRange(1, 6));
+    EXPECT_EQ(column.Read(tskv::TimeRange(1, 6))->GetType(),
+              tskv::ColumnType::kMax);
 
     expected = std::vector<double>{1, 2, 3, 4};
     EXPECT_EQ(column.Read(tskv::TimeRange(1, 5))->GetValues(), expected);
     EXPECT_EQ(column.Read(tskv::TimeRange(1, 5))->GetTimeRange(),
               tskv::TimeRange(1, 5));
+    EXPECT_EQ(column.Read(tskv::TimeRange(1, 5))->GetType(),
+              tskv::ColumnType::kMax);
 
     expected = std::vector<double>{2, 3, 4, 5};
     EXPECT_EQ(column.Read(tskv::TimeRange(2, 6))->GetValues(), expected);
     EXPECT_EQ(column.Read(tskv::TimeRange(2, 6))->GetTimeRange(),
               tskv::TimeRange(2, 6));
+    EXPECT_EQ(column.Read(tskv::TimeRange(2, 6))->GetType(),
+              tskv::ColumnType::kMax);
 
     expected = std::vector<double>{3};
     EXPECT_EQ(column.Read(tskv::TimeRange(3, 4))->GetValues(), expected);
     EXPECT_EQ(column.Read(tskv::TimeRange(3, 4))->GetTimeRange(),
               tskv::TimeRange(3, 4));
+    EXPECT_EQ(column.Read(tskv::TimeRange(3, 4))->GetType(),
+              tskv::ColumnType::kMax);
   }
   {
     tskv::MaxColumn column(std::vector<double>{1, 2, 3, 4, 5},
@@ -561,15 +637,26 @@ TEST(MaxColumn, Read) {
     EXPECT_EQ(column.Read(tskv::TimeRange(2, 12))->GetValues(), expected);
     EXPECT_EQ(column.Read(tskv::TimeRange(2, 12))->GetTimeRange(),
               tskv::TimeRange(2, 12));
+    EXPECT_EQ(column.Read(tskv::TimeRange(2, 12))->GetType(),
+              tskv::ColumnType::kMax);
+
     EXPECT_EQ(column.Read(tskv::TimeRange(3, 12))->GetValues(), expected);
     EXPECT_EQ(column.Read(tskv::TimeRange(3, 12))->GetTimeRange(),
               tskv::TimeRange(2, 12));
+    EXPECT_EQ(column.Read(tskv::TimeRange(3, 12))->GetType(),
+              tskv::ColumnType::kMax);
+
     EXPECT_EQ(column.Read(tskv::TimeRange(1, 100))->GetValues(), expected);
     EXPECT_EQ(column.Read(tskv::TimeRange(1, 100))->GetTimeRange(),
               tskv::TimeRange(2, 12));
+    EXPECT_EQ(column.Read(tskv::TimeRange(1, 100))->GetType(),
+              tskv::ColumnType::kMax);
+
     EXPECT_EQ(column.Read(tskv::TimeRange(2, 11))->GetValues(), expected);
     EXPECT_EQ(column.Read(tskv::TimeRange(2, 11))->GetTimeRange(),
               tskv::TimeRange(2, 12));
+    EXPECT_EQ(column.Read(tskv::TimeRange(2, 11))->GetType(),
+              tskv::ColumnType::kMax);
   }
 }
 
