@@ -152,7 +152,7 @@ void SumColumn::ScaleBuckets(Duration bucket_interval) {
   assert(bucket_interval % bucket_interval_ == 0);
   auto scale = bucket_interval / bucket_interval_;
   auto new_buckets_sz = buckets_.size() / scale;
-  if (start_time_ % bucket_interval != 0) {
+  if (start_time_ % bucket_interval != 0 || buckets_.size() % scale != 0) {
     ++new_buckets_sz;
   }
 
@@ -296,7 +296,7 @@ void CountColumn::ScaleBuckets(Duration bucket_interval) {
   assert(bucket_interval % bucket_interval_ == 0);
   auto scale = bucket_interval / bucket_interval_;
   auto new_buckets_sz = buckets_.size() / scale;
-  if (start_time_ % bucket_interval != 0) {
+  if (start_time_ % bucket_interval != 0 || buckets_.size() % scale != 0) {
     ++new_buckets_sz;
   }
 
@@ -439,7 +439,7 @@ void MinColumn::ScaleBuckets(Duration bucket_interval) {
   assert(bucket_interval % bucket_interval_ == 0);
   auto scale = bucket_interval / bucket_interval_;
   auto new_buckets_sz = buckets_.size() / scale;
-  if (start_time_ % bucket_interval != 0) {
+  if (start_time_ % bucket_interval != 0 || buckets_.size() % scale != 0) {
     ++new_buckets_sz;
   }
 
@@ -583,7 +583,7 @@ void MaxColumn::ScaleBuckets(Duration bucket_interval) {
   assert(bucket_interval % bucket_interval_ == 0);
   auto scale = bucket_interval / bucket_interval_;
   auto new_buckets_sz = buckets_.size() / scale;
-  if (start_time_ % bucket_interval != 0) {
+  if (start_time_ % bucket_interval != 0 || buckets_.size() % scale != 0) {
     ++new_buckets_sz;
   }
 

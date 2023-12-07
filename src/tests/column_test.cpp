@@ -238,6 +238,15 @@ TEST(SumColumn, ScaleBuckets) {
     auto expected = std::vector<double>{5, 14, 16, 13};
     EXPECT_EQ(column.GetValues(), expected);
   }
+  {
+    tskv::SumColumn column(std::vector<double>{1, 4, 2, 3, 9, 15, 0, 1, 8},
+                           tskv::TimePoint(0), 2);
+    column.ScaleBuckets(4);
+    EXPECT_EQ(column.GetType(), tskv::ColumnType::kSum);
+    EXPECT_EQ(column.GetTimeRange(), tskv::TimeRange(0, 20));
+    auto expected = std::vector<double>{5, 5, 24, 1, 8};
+    EXPECT_EQ(column.GetValues(), expected);
+  }
 }
 
 TEST(CountColumn, Basic) {
@@ -437,6 +446,15 @@ TEST(CountColumn, ScaleBuckets) {
     EXPECT_EQ(column.GetType(), tskv::ColumnType::kCount);
     EXPECT_EQ(column.GetTimeRange(), tskv::TimeRange(0, 24));
     auto expected = std::vector<double>{5, 14, 16, 13};
+    EXPECT_EQ(column.GetValues(), expected);
+  }
+  {
+    tskv::CountColumn column(std::vector<double>{1, 4, 2, 3, 9, 15, 0, 1, 8},
+                             tskv::TimePoint(0), 2);
+    column.ScaleBuckets(4);
+    EXPECT_EQ(column.GetType(), tskv::ColumnType::kCount);
+    EXPECT_EQ(column.GetTimeRange(), tskv::TimeRange(0, 20));
+    auto expected = std::vector<double>{5, 5, 24, 1, 8};
     EXPECT_EQ(column.GetValues(), expected);
   }
 }
@@ -640,6 +658,15 @@ TEST(MinColumn, ScaleBuckets) {
     auto expected = std::vector<double>{1, 2, 0, 5};
     EXPECT_EQ(column.GetValues(), expected);
   }
+  {
+    tskv::MinColumn column(std::vector<double>{1, 4, 2, 3, 9, 15, 0, 1, 8},
+                             tskv::TimePoint(0), 2);
+    column.ScaleBuckets(4);
+    EXPECT_EQ(column.GetType(), tskv::ColumnType::kMin);
+    EXPECT_EQ(column.GetTimeRange(), tskv::TimeRange(0, 20));
+    auto expected = std::vector<double>{1, 2, 9, 0, 8};
+    EXPECT_EQ(column.GetValues(), expected);
+  }
 }
 
 TEST(MaxColumn, Basic) {
@@ -839,6 +866,15 @@ TEST(MaxColumn, ScaleBuckets) {
     EXPECT_EQ(column.GetType(), tskv::ColumnType::kMax);
     EXPECT_EQ(column.GetTimeRange(), tskv::TimeRange(0, 24));
     auto expected = std::vector<double>{4, 9, 15, 8};
+    EXPECT_EQ(column.GetValues(), expected);
+  }
+  {
+    tskv::MaxColumn column(std::vector<double>{1, 4, 2, 3, 9, 15, 0, 1, 8},
+                             tskv::TimePoint(0), 2);
+    column.ScaleBuckets(4);
+    EXPECT_EQ(column.GetType(), tskv::ColumnType::kMax);
+    EXPECT_EQ(column.GetTimeRange(), tskv::TimeRange(0, 20));
+    auto expected = std::vector<double>{4, 3, 15, 1, 8};
     EXPECT_EQ(column.GetValues(), expected);
   }
 }
