@@ -1,70 +1,132 @@
+#include "metric-storage/metric_storage.h"
+#include "model/aggregations.h"
 #include "model/column.h"
+#include "model/model.h"
 #include "persistent-storage/disk_storage.h"
 #include "persistent-storage/persistent_storage_manager.h"
 #include "storage/storage.h"
 
+#include <fstream>
 #include <iostream>
 #include <ranges>
 #include <vector>
 
-void print_reads(const tskv::Storage& storage, size_t metric_id,
-                 const std::vector<tskv::TimeRange>& time_ranges) {
-  for (auto time_range : time_ranges) {
-    auto column =
-        storage.Read(metric_id, time_range, tskv::AggregationType::kSum);
-    auto read_col = std::dynamic_pointer_cast<tskv::IReadColumn>(column);
-    auto read_time_range = read_col->GetTimeRange();
-    auto values = read_col->GetValues();
-    auto step = (read_time_range.end - read_time_range.start) / values.size();
-    for (size_t i = 0; i < values.size(); ++i) {
-      std::cout << read_time_range.start + i * step << " " << values[i]
-                << std::endl;
-    }
-    std::cout << std::endl;
+std::vector<std::string> Split(const std::string& s,
+                               const std::string& delimiter) {
+  size_t pos_start = 0, pos_end, delim_len = delimiter.length();
+  std::string token;
+  std::vector<std::string> res;
 
-    column = storage.Read(metric_id, time_range, tskv::AggregationType::kNone);
-    if (!column) {
-      std::cout << "not found" << std::endl << std::endl;
-      continue;
-    }
-    auto read_raw_col = std::dynamic_pointer_cast<tskv::ReadRawColumn>(column);
-    for (size_t i = 0; i < read_raw_col->GetTimestamps().size(); ++i) {
-      std::cout << read_raw_col->GetTimestamps()[i] << " "
-                << read_raw_col->GetValues()[i] << std::endl;
-    }
-    std::cout << std::endl;
+  while ((pos_end = s.find(delimiter, pos_start)) != std::string::npos) {
+    token = s.substr(pos_start, pos_end - pos_start);
+    pos_start = pos_end + delim_len;
+    res.push_back(token);
   }
+
+  res.push_back(s.substr(pos_start));
+  return res;
 }
 
 int main() {
+  std::ifstream input("../../test_data/timescaledb-data");
+  std::string line;
+  getline(input, line);
+  std::unordered_map<std::string, std::vector<std::string>> metric_names;
+  while (getline(input, line)) {
+    if (line.empty()) {
+      break;
+    }
+    auto names = Split(line, ",");
+    metric_names[names[0]] =
+        std::vector<std::string>(names.begin() + 1, names.end());
+  }
+  constexpr uint64_t kMb = 1024 * 1024;
+  constexpr uint64_t kBufferSize = 1 * kMb;
+  std::unordered_map<size_t, std::vector<tskv::InputTimeSeries>> time_series;
+  while (getline(input, line)) {
+    auto tags = line;
+    assert(tags.starts_with("tags,"));
+    getline(input, line);
+    auto metrics = Split(line, ",");
+    auto metric_type = metrics[0];
+    const auto& cur_metric_names = metric_names[metric_type];
+    assert(cur_metric_names.size() == metrics.size() - 2);
+    tskv::TimePoint timestamp = std::strtoull(metrics[1].c_str(), nullptr, 10);
+    for (int i = 2; i < metrics.size(); ++i) {
+      auto hash = std::hash<std::string>{}(tags + ',' + metric_type + ',' +
+                                           cur_metric_names[i - 2]);
+      tskv::Value metric_value = std::strtod(metrics[i].c_str(), nullptr);
+      if (time_series.find(hash) == time_series.end()) {
+        time_series[hash] = std::vector<tskv::InputTimeSeries>();
+      }
+      if (time_series[hash].empty() ||
+          time_series[hash].back().size() * sizeof(tskv::Record) >=
+              kBufferSize) {
+        time_series[hash].emplace_back();
+      }
+      time_series[hash].back().emplace_back(timestamp, metric_value);
+    }
+  }
+  input.close();
+
+  std::cerr << "read " << time_series.size() << " time series" << std::endl;
+
   tskv::Storage storage;
-  auto metric_id = storage.InitMetric(tskv::MetricStorage::Options{
+  tskv::MetricStorage::Options default_options = {
       tskv::MetricOptions{
-          {tskv::AggregationType::kSum},
-          // {},
+          {tskv::StoredAggregationType::kSum,
+           tskv::StoredAggregationType::kCount,
+           tskv::StoredAggregationType::kMin,
+           tskv::StoredAggregationType::kMax},
       },
       tskv::Memtable::Options{
-          .bucket_inteval = 1, .capacity = 4, .store_raw = true},
+          .bucket_inteval = tskv::Duration::Seconds(40),
+          .max_size = 1000 * kMb,
+          .max_age = tskv::Duration::Days(1),
+          .store_raw = true,
+      },
       tskv::PersistentStorageManager::Options{
-          .levels =
-              {
-                  {.bucket_interval = 1,
-                   .level_duration = 6,
-                   .store_raw = true},
-                  {.bucket_interval = 2,
-                   .level_duration = 10,
-                   .store_raw = false},
-              },
-          .storage = std::make_shared<tskv::DiskStorage>(
-              tskv::DiskStorage::Options{"./tmp/tskv"})}});
+          .levels = {{
+                         .bucket_interval = tskv::Duration::Seconds(40),
+                         .level_duration = tskv::Duration::Minutes(10),
+                         .store_raw = true,
+                     },
+                     {
+                         .bucket_interval = tskv::Duration::Minutes(30),
+                         .level_duration = tskv::Duration::Days(1),
+                     },
+                     {
+                         .bucket_interval = tskv::Duration::Hours(3),
+                         .level_duration = tskv::Duration::Months(1),
+                     }},
+          .storage = std::make_unique<tskv::DiskStorage>(
+              tskv::DiskStorage::Options{.path = "./tmp/tskv"}),
+      },
+  };
 
-  storage.Write(metric_id, tskv::InputTimeSeries{{1, 1}, {2, 2}, {2, 1}});
-  print_reads(storage, metric_id, {{2, 3}, {1, 5}});
-  storage.Write(metric_id, tskv::InputTimeSeries{
-                               {2, 3}, {3, 1}, {3, 10}, {4, 2}, {4, -1}});
-  print_reads(storage, metric_id, {{2, 3}, {1, 5}});
+  std::unordered_map<size_t, tskv::MetricId> metric_ids;
+  for (const auto& [hash, _] : time_series) {
+    metric_ids[hash] = storage.InitMetric(default_options);
+  }
 
-  storage.Write(metric_id, tskv::InputTimeSeries{{6, 1}, {8, 2}, {10, 3}});
-  print_reads(storage, metric_id, {{2, 3}, {1, 5}, {1, 11}});
+  int idx = 0;
+  while (true) {
+    bool wrote = false;
+
+    for (auto& [hash, time_series] : time_series) {
+      if (idx >= time_series.size()) {
+        continue;
+      }
+      auto& cur_time_series = time_series[idx];
+      std::cerr << "writing " << cur_time_series.size() << " records for "
+                << hash << std::endl;
+      storage.Write(metric_ids[hash], cur_time_series);
+      wrote = true;
+    }
+
+    if (!wrote) {
+      break;
+    }
+  }
   return 0;
 }

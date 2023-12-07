@@ -13,13 +13,6 @@ namespace tskv {
 Memtable::Memtable(const Options& options, const MetricOptions& metric_options)
     : options_(options) {
   for (auto aggregation_type : metric_options.aggregation_types) {
-    if (aggregation_type == AggregationType::kAvg) {
-      columns_.push_back(
-          CreateAggregatedColumn(ColumnType::kSum, options.bucket_inteval));
-      columns_.push_back(
-          CreateAggregatedColumn(ColumnType::kCount, options.bucket_inteval));
-      continue;
-    }
     auto column_type = ToColumnType(aggregation_type);
     columns_.push_back(
         CreateAggregatedColumn(column_type, options.bucket_inteval));
@@ -35,7 +28,7 @@ void Memtable::Write(const InputTimeSeries& time_series) {
   for (auto& column : columns_) {
     column->Write(time_series);
   }
-  size_ += time_series.size();
+  elements_wrote_ += time_series.size();
 }
 
 Memtable::ReadResult Memtable::Read(
@@ -74,9 +67,12 @@ Columns Memtable::ExtractColumns() {
 }
 
 bool Memtable::NeedFlush() const {
-  if (options_.capacity && size_ >= *options_.capacity) {
+  /*
+  TODO: implement
+  if (options_.max_size && elements_wrote_ >= *options_.max_size) {
     return true;
   }
+  */
 
   auto ts_it = std::ranges::find_if(columns_, [](const auto& column) {
     return column->GetType() != ColumnType::kRawValues;

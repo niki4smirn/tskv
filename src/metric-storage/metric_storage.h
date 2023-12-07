@@ -2,13 +2,14 @@
 
 #include <memory>
 #include "memtable/memtable.h"
+#include "model/aggregations.h"
 #include "model/model.h"
 #include "persistent-storage/persistent_storage_manager.h"
 
 namespace tskv {
 
 struct MetricOptions {
-  std::vector<AggregationType> aggregation_types;
+  std::vector<StoredAggregationType> aggregation_types;
 };
 
 class MetricStorage {

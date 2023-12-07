@@ -146,6 +146,9 @@ ColumnType SumColumn::GetType() const {
 }
 
 void SumColumn::ScaleBuckets(Duration bucket_interval) {
+  if (bucket_interval == bucket_interval_) {
+    return;
+  }
   assert(bucket_interval % bucket_interval_ == 0);
   auto scale = bucket_interval / bucket_interval_;
   auto new_buckets_sz = buckets_.size() / scale;
@@ -157,8 +160,8 @@ void SumColumn::ScaleBuckets(Duration bucket_interval) {
   size_t pos = 0;
   for (size_t i = 0; i < buckets_.size(); ++i) {
     sum += buckets_[i];
-    if ((start_time_ + bucket_interval_ * i) % bucket_interval ==
-        bucket_interval - 1) {
+    if ((start_time_ + bucket_interval_ * i) / bucket_interval !=
+        (start_time_ + bucket_interval_ * (i + 1)) / bucket_interval) {
       buckets_[pos++] = sum;
       sum = 0;
     }
@@ -287,6 +290,9 @@ ColumnType CountColumn::GetType() const {
 }
 
 void CountColumn::ScaleBuckets(Duration bucket_interval) {
+  if (bucket_interval == bucket_interval_) {
+    return;
+  }
   assert(bucket_interval % bucket_interval_ == 0);
   auto scale = bucket_interval / bucket_interval_;
   auto new_buckets_sz = buckets_.size() / scale;
@@ -298,8 +304,8 @@ void CountColumn::ScaleBuckets(Duration bucket_interval) {
   size_t pos = 0;
   for (size_t i = 0; i < buckets_.size(); ++i) {
     count += buckets_[i];
-    if ((start_time_ + bucket_interval_ * i) % bucket_interval ==
-        bucket_interval - 1) {
+    if ((start_time_ + bucket_interval_ * i) / bucket_interval !=
+        (start_time_ + bucket_interval_ * (i + 1)) / bucket_interval) {
       buckets_[pos++] = count;
       count = 0;
     }
@@ -427,6 +433,9 @@ ColumnType MinColumn::GetType() const {
 }
 
 void MinColumn::ScaleBuckets(Duration bucket_interval) {
+  if (bucket_interval == bucket_interval_) {
+    return;
+  }
   assert(bucket_interval % bucket_interval_ == 0);
   auto scale = bucket_interval / bucket_interval_;
   auto new_buckets_sz = buckets_.size() / scale;
@@ -438,8 +447,8 @@ void MinColumn::ScaleBuckets(Duration bucket_interval) {
   size_t pos = 0;
   for (size_t i = 0; i < buckets_.size(); ++i) {
     min = std::min(min, buckets_[i]);
-    if ((start_time_ + bucket_interval_ * i) % bucket_interval ==
-        bucket_interval - 1) {
+    if ((start_time_ + bucket_interval_ * i) / bucket_interval !=
+        (start_time_ + bucket_interval_ * (i + 1)) / bucket_interval) {
       buckets_[pos++] = min;
       min = std::numeric_limits<double>::max();
     }
@@ -568,6 +577,9 @@ ColumnType MaxColumn::GetType() const {
 }
 
 void MaxColumn::ScaleBuckets(Duration bucket_interval) {
+  if (bucket_interval == bucket_interval_) {
+    return;
+  }
   assert(bucket_interval % bucket_interval_ == 0);
   auto scale = bucket_interval / bucket_interval_;
   auto new_buckets_sz = buckets_.size() / scale;
@@ -575,18 +587,18 @@ void MaxColumn::ScaleBuckets(Duration bucket_interval) {
     ++new_buckets_sz;
   }
 
-  double max = std::numeric_limits<double>::min();
+  double max = std::numeric_limits<double>::lowest();
   size_t pos = 0;
   for (size_t i = 0; i < buckets_.size(); ++i) {
     max = std::max(max, buckets_[i]);
-    if ((start_time_ + bucket_interval_ * i) % bucket_interval ==
-        bucket_interval - 1) {
+    if ((start_time_ + bucket_interval_ * i) / bucket_interval !=
+        (start_time_ + bucket_interval_ * (i + 1)) / bucket_interval) {
       buckets_[pos++] = max;
-      max = std::numeric_limits<double>::min();
+      max = std::numeric_limits<double>::lowest();
     }
   }
 
-  if (max != std::numeric_limits<double>::min()) {
+  if (max != std::numeric_limits<double>::lowest()) {
     buckets_[pos++] = max;
   }
 
@@ -643,7 +655,7 @@ void MaxColumn::Merge(Column column) {
     auto to_insert_min =
         (max_column->start_time_ - cur_time_range.end) / bucket_interval_;
     for (size_t i = 0; i < to_insert_min; ++i) {
-      buckets_.push_back(std::numeric_limits<double>::min());
+      buckets_.push_back(std::numeric_limits<double>::lowest());
     }
   }
 
@@ -664,7 +676,7 @@ void MaxColumn::Write(const InputTimeSeries& time_series) {
   auto needed_size =
       (time_series.back().timestamp + 1 - start_time_ + bucket_interval_ - 1) /
       bucket_interval_;
-  buckets_.resize(needed_size, std::numeric_limits<double>::min());
+  buckets_.resize(needed_size, std::numeric_limits<double>::lowest());
   for (const auto& record : time_series) {
     auto idx = *column_.GetBucketIdx(record.timestamp);
     buckets_[idx] = std::max(buckets_[idx], record.value);
