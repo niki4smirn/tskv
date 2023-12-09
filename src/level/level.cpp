@@ -87,6 +87,8 @@ void Level::MovePagesFrom(Level& other) {
       if (column_type == ColumnType::kRawTimestamps ||
           column_type == ColumnType::kRawValues) {
         if (!options_.store_raw) {
+          // it's not really right to delete page, we need to truncate it
+          other.storage_->DeletePage(page_id);
           continue;
         }
         Write(column);
@@ -99,6 +101,7 @@ void Level::MovePagesFrom(Level& other) {
     }
   }
   time_range_ = time_range_.Merge(other.time_range_);
+
   other.page_ids_.clear();
   other.time_range_ = {};
 }

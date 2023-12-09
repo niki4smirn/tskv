@@ -18,7 +18,7 @@ class Memtable {
  public:
   struct Options {
     Duration bucket_inteval;
-    std::optional<size_t> max_size;
+    std::optional<size_t> max_bytes_size;
     std::optional<Duration> max_age;
     bool store_raw{false};
   };
@@ -40,9 +40,10 @@ class Memtable {
  private:
   ReadResult ReadRawValues(const TimeRange& time_range) const;
 
+  size_t GetBytesSize() const;
+
   Columns columns_;
   Options options_;
-  size_t elements_wrote_{0};
 };
 
 }  // namespace tskv

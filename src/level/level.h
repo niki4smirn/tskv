@@ -20,11 +20,11 @@ class Level {
               StoredAggregationType aggregation_type) const;
   void Write(const SerializableColumn& column);
   void MovePagesFrom(Level& level);
-  TimeRange GetTimeRange() const;
   bool NeedMerge() const;
 
  private:
   Column ReadRawValues(const TimeRange& time_range) const;
+  void Clear();
 
  private:
   Options options_;

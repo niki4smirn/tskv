@@ -12,7 +12,7 @@ void ValidateOptions(const MetricStorage::Options& options) {
     }
   }
 
-  if (!memtable_options.max_size && !memtable_options.max_age) {
+  if (!memtable_options.max_bytes_size && !memtable_options.max_age) {
     throw std::runtime_error("Memtable should have max_size or max_age");
   }
 

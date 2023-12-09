@@ -81,6 +81,8 @@ int main() {
 
   std::cerr << "read " << time_series.size() << " time series" << std::endl;
 
+  start = std::chrono::steady_clock::now();
+
   tskv::Storage storage;
   tskv::MetricStorage::Options default_options = {
       tskv::MetricOptions{
@@ -91,23 +93,19 @@ int main() {
       },
       tskv::Memtable::Options{
           .bucket_inteval = tskv::Duration::Seconds(40),
-          .max_size = 1000 * kMb,
-          .max_age = tskv::Duration::Days(1),
+          .max_bytes_size = 1000 * kMb,
+          .max_age = tskv::Duration::Hours(18),
           .store_raw = true,
       },
       tskv::PersistentStorageManager::Options{
           .levels = {{
                          .bucket_interval = tskv::Duration::Seconds(40),
-                         .level_duration = tskv::Duration::Minutes(10),
+                         .level_duration = tskv::Duration::Hours(20),
                          .store_raw = true,
                      },
                      {
                          .bucket_interval = tskv::Duration::Minutes(30),
-                         .level_duration = tskv::Duration::Days(1),
-                     },
-                     {
-                         .bucket_interval = tskv::Duration::Hours(3),
-                         .level_duration = tskv::Duration::Months(1),
+                         .level_duration = tskv::Duration::Weeks(2),
                      }},
           .storage = std::make_unique<tskv::DiskStorage>(
               tskv::DiskStorage::Options{.path = "./tmp/tskv"}),
@@ -140,5 +138,12 @@ int main() {
       break;
     }
   }
+
+  end = std::chrono::steady_clock::now();
+  std::cerr << "write time: "
+            << std::chrono::duration_cast<std::chrono::milliseconds>(end -
+                                                                     start)
+                   .count()
+            << "ms" << std::endl;
   return 0;
 }

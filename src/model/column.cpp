@@ -768,6 +768,10 @@ TimeRange RawTimestampsColumn::GetTimeRange() const {
   return {timestamps_.front(), timestamps_.back() + 1};
 }
 
+size_t RawTimestampsColumn::TimestampsNum() const {
+  return timestamps_.size();
+}
+
 RawValuesColumn::RawValuesColumn(std::vector<Value> values)
     : values_(std::move(values)) {}
 
@@ -819,6 +823,10 @@ Column RawValuesColumn::Extract() {
   auto values = std::move(values_);
   values_ = {};
   return std::make_shared<RawValuesColumn>(values);
+}
+
+size_t RawValuesColumn::ValuesNum() const {
+  return values_.size();
 }
 
 ReadRawColumn::ReadRawColumn(

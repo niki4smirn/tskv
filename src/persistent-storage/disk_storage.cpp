@@ -64,7 +64,6 @@ void DiskStorage::Write(const PageId& page_id, const CompressedBytes& bytes) {
 }
 
 void DiskStorage::DeletePage(const PageId& page_id) {
-  // TODO: implement
-  assert(false);
+  std::filesystem::remove(path_ / page_id);
 }
 }  // namespace tskv

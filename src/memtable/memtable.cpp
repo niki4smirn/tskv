@@ -28,7 +28,6 @@ void Memtable::Write(const InputTimeSeries& time_series) {
   for (auto& column : columns_) {
     column->Write(time_series);
   }
-  elements_wrote_ += time_series.size();
 }
 
 Memtable::ReadResult Memtable::Read(
@@ -67,12 +66,9 @@ Columns Memtable::ExtractColumns() {
 }
 
 bool Memtable::NeedFlush() const {
-  /*
-  TODO: implement
-  if (options_.max_size && elements_wrote_ >= *options_.max_size) {
+  if (options_.max_bytes_size && GetBytesSize() > *options_.max_bytes_size) {
     return true;
   }
-  */
 
   auto ts_it = std::ranges::find_if(columns_, [](const auto& column) {
     return column->GetType() != ColumnType::kRawValues;
@@ -127,6 +123,39 @@ Memtable::ReadResult Memtable::ReadRawValues(
     not_found = TimeRange{time_range.start, column_res->GetTimeRange().start};
   }
   return {.found = column_res, .not_found = not_found};
+}
+
+size_t Memtable::GetBytesSize() const {
+  size_t size = 0;
+  for (const auto& column : columns_) {
+    switch (column->GetType()) {
+      case ColumnType::kSum:
+      case ColumnType::kCount:
+      case ColumnType::kMin:
+      case ColumnType::kMax: {
+        auto agg_column = std::dynamic_pointer_cast<IAggregateColumn>(column);
+        size_t buckets_num = agg_column->GetTimeRange().GetDuration() /
+                             options_.bucket_inteval;
+        size += buckets_num * sizeof(Value);
+        break;
+      }
+      case ColumnType::kRawTimestamps: {
+        auto raw_ts_column =
+            std::dynamic_pointer_cast<RawTimestampsColumn>(column);
+        size += raw_ts_column->TimestampsNum() * sizeof(TimePoint);
+        break;
+      }
+      case ColumnType::kRawValues: {
+        auto raw_vals_column =
+            std::dynamic_pointer_cast<RawValuesColumn>(column);
+        size += raw_vals_column->ValuesNum() * sizeof(Value);
+        break;
+      }
+      default:
+        assert(false);
+    }
+  }
+  return size;
 }
 
 }  // namespace tskv

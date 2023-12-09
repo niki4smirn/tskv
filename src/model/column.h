@@ -239,6 +239,7 @@ class RawTimestampsColumn : public ISerializableColumn {
   std::vector<Value> GetValues() const override;
   Column Extract() override;
   TimeRange GetTimeRange() const;
+  size_t TimestampsNum() const;
 
  private:
   std::vector<TimePoint> timestamps_;
@@ -255,6 +256,7 @@ class RawValuesColumn : public ISerializableColumn {
   void Write(const InputTimeSeries& time_series) override;
   std::vector<Value> GetValues() const override;
   Column Extract() override;
+  size_t ValuesNum() const;
 
  private:
   std::vector<Value> values_;
