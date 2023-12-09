@@ -28,7 +28,8 @@ std::vector<std::string> Split(const std::string& s,
 }
 
 int main() {
-  std::ifstream input("../../test_data/timescaledb-data");
+  auto start = std::chrono::steady_clock::now();
+  std::ifstream input("../../test_data/timescaledb-data-5-1s");
   std::string line;
   getline(input, line);
   std::unordered_map<std::string, std::vector<std::string>> metric_names;
@@ -51,6 +52,8 @@ int main() {
     auto metric_type = metrics[0];
     const auto& cur_metric_names = metric_names[metric_type];
     assert(cur_metric_names.size() == metrics.size() - 2);
+    // fast nanoseconds to microseconds conversion
+    metrics[1][metrics[1].size() - 3] = 0;
     tskv::TimePoint timestamp = std::strtoull(metrics[1].c_str(), nullptr, 10);
     for (int i = 2; i < metrics.size(); ++i) {
       auto hash = std::hash<std::string>{}(tags + ',' + metric_type + ',' +
@@ -68,6 +71,13 @@ int main() {
     }
   }
   input.close();
+
+  auto end = std::chrono::steady_clock::now();
+  std::cerr << "read time: "
+            << std::chrono::duration_cast<std::chrono::milliseconds>(end -
+                                                                     start)
+                   .count()
+            << "ms" << std::endl;
 
   std::cerr << "read " << time_series.size() << " time series" << std::endl;
 
@@ -113,16 +123,18 @@ int main() {
   while (true) {
     bool wrote = false;
 
-    for (auto& [hash, time_series] : time_series) {
-      if (idx >= time_series.size()) {
+    for (auto& [hash, series] : time_series) {
+      if (idx >= series.size()) {
         continue;
       }
-      auto& cur_time_series = time_series[idx];
+      auto& cur_time_series = series[idx];
       std::cerr << "writing " << cur_time_series.size() << " records for "
                 << hash << std::endl;
       storage.Write(metric_ids[hash], cur_time_series);
       wrote = true;
     }
+
+    ++idx;
 
     if (!wrote) {
       break;
