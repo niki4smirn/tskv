@@ -15,7 +15,7 @@ Memtable::Memtable(const Options& options, const MetricOptions& metric_options)
   for (auto aggregation_type : metric_options.aggregation_types) {
     auto column_type = ToColumnType(aggregation_type);
     columns_.push_back(
-        CreateAggregatedColumn(column_type, options.bucket_inteval));
+        CreateAggregatedColumn(column_type, options.bucket_interval));
     assert(columns_.back()->GetType() == column_type);
   }
   if (options.store_raw) {
@@ -134,8 +134,8 @@ size_t Memtable::GetBytesSize() const {
       case ColumnType::kMin:
       case ColumnType::kMax: {
         auto agg_column = std::dynamic_pointer_cast<IAggregateColumn>(column);
-        size_t buckets_num = agg_column->GetTimeRange().GetDuration() /
-                             options_.bucket_inteval;
+        size_t buckets_num =
+            agg_column->GetTimeRange().GetDuration() / options_.bucket_interval;
         size += buckets_num * sizeof(Value);
         break;
       }

@@ -18,7 +18,7 @@ void ValidateOptions(const MetricStorage::Options& options) {
 
   if (!persistent_storage_options.levels.empty()) {
     if (persistent_storage_options.levels[0].bucket_interval !=
-        memtable_options.bucket_inteval) {
+        memtable_options.bucket_interval) {
       throw std::runtime_error(
           "First level bucket interval should be equal to memtable bucket "
           "interval");

@@ -17,7 +17,7 @@ struct MetricOptions;
 class Memtable {
  public:
   struct Options {
-    Duration bucket_inteval;
+    Duration bucket_interval;
     std::optional<size_t> max_bytes_size;
     std::optional<Duration> max_age;
     bool store_raw{false};

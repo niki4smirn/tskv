@@ -25,9 +25,14 @@ class MockPersistentStorage : public tskv::IPersistentStorage {
 };
 
 TEST(Level, ReadWrite) {
-  /*
   auto mock_storage = std::make_shared<MockPersistentStorage>();
-  tskv::Level level(mock_storage);
+  tskv::Level level(
+      tskv::Level::Options{
+          .bucket_interval = tskv::Duration::Seconds(40),
+          .level_duration = tskv::Duration::Hours(20),
+          .store_raw = true,
+      },
+      mock_storage);
 
   EXPECT_CALL(*mock_storage, CreatePage).Times(1);
   EXPECT_CALL(*mock_storage, Write).Times(1);
@@ -47,7 +52,6 @@ TEST(Level, ReadWrite) {
   auto expected = std::vector<double>{1, 2, 3, 4, 5};
   EXPECT_EQ(read_column->GetValues(), expected);
   EXPECT_EQ(read_column->GetTimeRange(), tskv::TimeRange(45, 120));
-  */
 }
 
 // TODO: add MovePagesFrom test

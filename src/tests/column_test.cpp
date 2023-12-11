@@ -660,7 +660,7 @@ TEST(MinColumn, ScaleBuckets) {
   }
   {
     tskv::MinColumn column(std::vector<double>{1, 4, 2, 3, 9, 15, 0, 1, 8},
-                             tskv::TimePoint(0), 2);
+                           tskv::TimePoint(0), 2);
     column.ScaleBuckets(4);
     EXPECT_EQ(column.GetType(), tskv::ColumnType::kMin);
     EXPECT_EQ(column.GetTimeRange(), tskv::TimeRange(0, 20));
@@ -870,7 +870,7 @@ TEST(MaxColumn, ScaleBuckets) {
   }
   {
     tskv::MaxColumn column(std::vector<double>{1, 4, 2, 3, 9, 15, 0, 1, 8},
-                             tskv::TimePoint(0), 2);
+                           tskv::TimePoint(0), 2);
     column.ScaleBuckets(4);
     EXPECT_EQ(column.GetType(), tskv::ColumnType::kMax);
     EXPECT_EQ(column.GetTimeRange(), tskv::TimeRange(0, 20));

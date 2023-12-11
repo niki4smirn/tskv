@@ -1,13 +1,16 @@
 #include "disk_storage.h"
 #include <cassert>
+#include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <random>
 #include <stdexcept>
-#include "model/column.h"
+#include <string>
 
 namespace tskv {
 
-DiskStorage::DiskStorage(const Options& options) : path_(options.path) {
+DiskStorage::DiskStorage(const Options& options)
+    : path_(options.path), cache_(options.cache_size) {
   if (!std::filesystem::exists(path_)) {
     std::filesystem::create_directories(path_);
   }
@@ -46,12 +49,17 @@ PageId DiskStorage::CreatePage() {
 }
 
 CompressedBytes DiskStorage::Read(const PageId& page_id) {
+  CompressedBytes content;
+  if (cache_.Get(page_id, &content)) {
+    return content;
+  }
   std::ifstream in(path_ / page_id, std::ios::binary);
   if (!in) {
     throw std::runtime_error("file not found");
   }
-  CompressedBytes content((std::istreambuf_iterator<char>(in)),
-                          std::istreambuf_iterator<char>());
+  content = {(std::istreambuf_iterator<char>(in)),
+             std::istreambuf_iterator<char>()};
+  cache_.Set(page_id, content);
   return content;
 }
 
@@ -60,6 +68,7 @@ void DiskStorage::Write(const PageId& page_id, const CompressedBytes& bytes) {
   if (!out) {
     throw std::runtime_error("file not found");
   }
+  cache_.Set(page_id, bytes);
   out.write(reinterpret_cast<const char*>(bytes.data()), bytes.size());
 }
 

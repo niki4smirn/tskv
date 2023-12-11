@@ -2,6 +2,7 @@
 
 #include <filesystem>
 
+#include "lru-cache/lru-cache.h"
 #include "persistent_storage.h"
 
 namespace tskv {
@@ -10,6 +11,8 @@ class DiskStorage : public IPersistentStorage {
  public:
   struct Options {
     std::string path;
+    // number of files to keep in memory
+    size_t cache_size;
   };
 
  public:
@@ -23,6 +26,7 @@ class DiskStorage : public IPersistentStorage {
 
  private:
   std::filesystem::path path_;
+  LruCache<PageId, CompressedBytes> cache_;
 };
 
 }  // namespace tskv

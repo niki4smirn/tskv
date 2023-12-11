@@ -24,7 +24,6 @@ class Level {
 
  private:
   Column ReadRawValues(const TimeRange& time_range) const;
-  void Clear();
 
  private:
   Options options_;

@@ -6,12 +6,11 @@
 #include "model/column.h"
 #include "model/model.h"
 
-/*
 TEST(Memtable, ReadWrite) {
   tskv::Memtable memtable(
       tskv::Memtable::Options{
-          .bucket_inteval = 2,
-          .max_size = 6,
+          .bucket_interval = 2,
+          .max_bytes_size = 4 * sizeof(double) - 1,
       },
       tskv::MetricOptions{{tskv::StoredAggregationType::kSum}});
   auto read_res =
@@ -70,8 +69,8 @@ TEST(Memtable, ReadWrite) {
 TEST(Memtable, ExtractColumns) {
   tskv::Memtable memtable(
       tskv::Memtable::Options{
-          .bucket_inteval = 2,
-          .max_size = 6,
+          .bucket_interval = 2,
+          .max_bytes_size = 1000,
           .store_raw = true,
       },
       tskv::MetricOptions{{tskv::StoredAggregationType::kSum}});
@@ -98,4 +97,3 @@ TEST(Memtable, ExtractColumns) {
     }
   }
 }
-*/
