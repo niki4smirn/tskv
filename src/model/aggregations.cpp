@@ -26,6 +26,8 @@ ColumnType ToColumnType(StoredAggregationType aggregation_type) {
       return ColumnType::kMin;
     case StoredAggregationType::kMax:
       return ColumnType::kMax;
+    case StoredAggregationType::kLast:
+      return ColumnType::kLast;
     case StoredAggregationType::kNone:
       return ColumnType::kRawRead;
   }

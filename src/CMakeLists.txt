@@ -25,6 +25,7 @@ add_executable(ts-kv-blob
         metric-storage/metric_storage.cpp
         model/aggregations.cpp
         model/column.cpp
+        model/model.cpp
         persistent-storage/disk_storage.cpp
         persistent-storage/persistent_storage_manager.cpp
         storage/storage.cpp
@@ -37,6 +38,7 @@ add_executable(ts-kv-blob-test
         metric-storage/metric_storage.cpp
         model/aggregations.cpp
         model/column.cpp
+        model/model.cpp
         persistent-storage/disk_storage.cpp
         persistent-storage/persistent_storage_manager.cpp
         storage/storage.cpp

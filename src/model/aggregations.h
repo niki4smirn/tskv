@@ -12,6 +12,7 @@ enum class StoredAggregationType {
   kCount,
   kMin,
   kMax,
+  kLast,
 };
 
 // WARNING: preserve order like in StoredAggregationType to make it easier to
@@ -22,6 +23,7 @@ enum class AggregationType {
   kCount,
   kMin,
   kMax,
+  kLast,
   kAvg,
 };
 

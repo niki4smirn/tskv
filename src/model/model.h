@@ -14,39 +14,18 @@ using Value = double;
 
 class Duration {
  public:
-  Duration() : value_(0) {}
+  Duration();
+  Duration(uint64_t value);
 
-  Duration(uint64_t value) : value_(value) {}
+  static Duration Milliseconds(int milliseconds);
+  static Duration Seconds(int seconds);
+  static Duration Minutes(int minutes);
+  static Duration Hours(int hours);
+  static Duration Days(int days);
+  static Duration Weeks(int weeks);
+  static Duration Months(int months);
 
-  static Duration Milliseconds(int milliseconds) {
-    return Duration(milliseconds * 1000);
-  }
-
-  static Duration Seconds(int seconds) {
-    return Duration(seconds * 1000 * 1000);
-  }
-
-  static Duration Minutes(int minutes) {
-    return Duration(minutes * 60 * 1000 * 1000);
-  }
-
-  static Duration Hours(int hours) {
-    return Duration(hours * 60ull * 60 * 1000 * 1000);
-  }
-
-  static Duration Days(int days) {
-    return Duration(days * 24ull * 60 * 60 * 1000 * 1000);
-  }
-
-  static Duration Weeks(int weeks) {
-    return Duration(weeks * 7ull * 24 * 60 * 60 * 1000 * 1000);
-  }
-
-  static Duration Months(int months) {
-    return Duration(months * 30ull * 24 * 60 * 60 * 1000 * 1000);
-  }
-
-  operator uint64_t() const { return value_; }
+  operator uint64_t() const;
 
  private:
   uint64_t value_;
@@ -60,14 +39,9 @@ struct TimeRange {
 
   bool operator==(const TimeRange& other) const = default;
 
-  Duration GetDuration() const { return end - start; }
+  Duration GetDuration() const;
 
-  TimeRange Merge(const TimeRange& other) const {
-    if (start == 0 && end == 0) {
-      return other;
-    }
-    return {std::min(start, other.start), std::max(end, other.end)};
-  }
+  TimeRange Merge(const TimeRange& other) const;
 };
 
 struct Record {
@@ -76,4 +50,5 @@ struct Record {
 };
 
 using InputTimeSeries = std::vector<Record>;
+
 }  // namespace tskv

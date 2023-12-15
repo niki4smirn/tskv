@@ -65,6 +65,7 @@ enum class ColumnType {
   kCount,
   kMin,
   kMax,
+  kLast,
   kRawTimestamps,
   kRawValues,
   kRawRead,
@@ -127,6 +128,7 @@ class AggregateColumn {
   friend class CountColumn;
   friend class MinColumn;
   friend class MaxColumn;
+  friend class LastColumn;
 
  private:
   std::vector<double> buckets_;
@@ -209,6 +211,28 @@ class MaxColumn : public IAggregateColumn {
   explicit MaxColumn(Duration bucket_interval);
   MaxColumn(std::vector<double> buckets, const TimePoint& start_time,
             Duration bucket_interval);
+  ColumnType GetType() const override;
+  void ScaleBuckets(Duration bucket_interval) override;
+  void Merge(Column column) override;
+  void Write(const InputTimeSeries& time_series) override;
+  ReadColumn Read(const TimeRange& time_range) const override;
+  std::vector<Value> GetValues() const override;
+  TimeRange GetTimeRange() const override;
+  Column Extract() override;
+  CompressedBytes ToBytes() const override;
+
+ private:
+  AggregateColumn column_;
+  std::vector<double>& buckets_;
+  TimePoint& start_time_;
+  Duration& bucket_interval_;
+};
+
+class LastColumn : public IAggregateColumn {
+ public:
+  explicit LastColumn(Duration bucket_interval);
+  LastColumn(std::vector<double> buckets, const TimePoint& start_time,
+             Duration bucket_interval);
   ColumnType GetType() const override;
   void ScaleBuckets(Duration bucket_interval) override;
   void Merge(Column column) override;

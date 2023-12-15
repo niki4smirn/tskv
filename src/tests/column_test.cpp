@@ -879,6 +879,194 @@ TEST(MaxColumn, ScaleBuckets) {
   }
 }
 
+TEST(LastColumn, Basic) {
+  tskv::LastColumn column(std::vector<double>{1, 2, 3, 4, 5},
+                          tskv::TimePoint(1), 1);
+  EXPECT_EQ(column.GetType(), tskv::ColumnType::kLast);
+  auto expected = std::vector<double>{1, 2, 3, 4, 5};
+  EXPECT_EQ(column.GetValues(), expected);
+  EXPECT_EQ(column.GetTimeRange(), tskv::TimeRange(1, 6));
+}
+
+TEST(LastColumn, Write) {
+  {
+    tskv::LastColumn column(1);
+    column.Write({{1, 1}, {2, 2}, {2, 1}, {3, 1}, {3, 10}, {4, 2}, {4, -1}});
+    auto expected = std::vector<double>{1, 1, 10, -1};
+    EXPECT_EQ(column.GetValues(), expected);
+    EXPECT_EQ(column.GetTimeRange(), tskv::TimeRange(1, 5));
+
+    column.Write({{4, 3}, {5, 11}, {6, 8}, {6, 7}});
+    expected = std::vector<double>{1, 1, 10, 3, 11, 7};
+    EXPECT_EQ(column.GetValues(), expected);
+    EXPECT_EQ(column.GetTimeRange(), tskv::TimeRange(1, 7));
+
+    column.Write({{7, 1}, {7, 2}, {7, 3}, {7, 4}});
+    expected = std::vector<double>{1, 1, 10, 3, 11, 7, 4};
+    EXPECT_EQ(column.GetValues(), expected);
+    EXPECT_EQ(column.GetTimeRange(), tskv::TimeRange(1, 8));
+  }
+  {
+    tskv::LastColumn column(2);
+    column.Write({{1, 1}, {2, 2}, {2, 1}, {3, 1}, {3, 10}, {4, 2}, {4, -1}});
+    auto expected = std::vector<double>{1, 10, -1};
+    EXPECT_EQ(column.GetValues(), expected);
+    EXPECT_EQ(column.GetTimeRange(), tskv::TimeRange(0, 6));
+
+    column.Write({{4, 3}, {5, 11}, {6, 8}, {6, 7}});
+    expected = std::vector<double>{1, 10, 11, 7};
+    EXPECT_EQ(column.GetValues(), expected);
+    EXPECT_EQ(column.GetTimeRange(), tskv::TimeRange(0, 8));
+
+    column.Write({{7, 1}, {7, 2}, {7, 3}, {7, 4}});
+    expected = std::vector<double>{1, 10, 11, 4};
+    EXPECT_EQ(column.GetValues(), expected);
+    EXPECT_EQ(column.GetTimeRange(), tskv::TimeRange(0, 8));
+  }
+}
+
+TEST(LastColumn, Read) {
+  {
+    tskv::LastColumn column(std::vector<double>{1, 2, 3, 4, 5},
+                            tskv::TimePoint(1), 1);
+    auto expected = std::vector<double>{1, 2, 3, 4, 5};
+    EXPECT_EQ(column.Read(tskv::TimeRange(1, 6))->GetValues(), expected);
+    EXPECT_EQ(column.Read(tskv::TimeRange(1, 6))->GetTimeRange(),
+              tskv::TimeRange(1, 6));
+    EXPECT_EQ(column.Read(tskv::TimeRange(1, 6))->GetType(),
+              tskv::ColumnType::kLast);
+
+    expected = std::vector<double>{1, 2, 3, 4};
+    EXPECT_EQ(column.Read(tskv::TimeRange(1, 5))->GetValues(), expected);
+    EXPECT_EQ(column.Read(tskv::TimeRange(1, 5))->GetTimeRange(),
+              tskv::TimeRange(1, 5));
+    EXPECT_EQ(column.Read(tskv::TimeRange(1, 5))->GetType(),
+              tskv::ColumnType::kLast);
+
+    expected = std::vector<double>{2, 3, 4, 5};
+    EXPECT_EQ(column.Read(tskv::TimeRange(2, 6))->GetValues(), expected);
+    EXPECT_EQ(column.Read(tskv::TimeRange(2, 6))->GetTimeRange(),
+              tskv::TimeRange(2, 6));
+    EXPECT_EQ(column.Read(tskv::TimeRange(2, 6))->GetType(),
+              tskv::ColumnType::kLast);
+
+    expected = std::vector<double>{3};
+    EXPECT_EQ(column.Read(tskv::TimeRange(3, 4))->GetValues(), expected);
+    EXPECT_EQ(column.Read(tskv::TimeRange(3, 4))->GetTimeRange(),
+              tskv::TimeRange(3, 4));
+    EXPECT_EQ(column.Read(tskv::TimeRange(3, 4))->GetType(),
+              tskv::ColumnType::kLast);
+  }
+  {
+    tskv::LastColumn column(std::vector<double>{1, 2, 3, 4, 5},
+                            tskv::TimePoint(2), 2);
+    auto expected = std::vector<double>{1, 2, 3, 4, 5};
+    EXPECT_EQ(column.Read(tskv::TimeRange(2, 12))->GetValues(), expected);
+    EXPECT_EQ(column.Read(tskv::TimeRange(2, 12))->GetTimeRange(),
+              tskv::TimeRange(2, 12));
+    EXPECT_EQ(column.Read(tskv::TimeRange(2, 12))->GetType(),
+              tskv::ColumnType::kLast);
+
+    EXPECT_EQ(column.Read(tskv::TimeRange(3, 12))->GetValues(), expected);
+    EXPECT_EQ(column.Read(tskv::TimeRange(3, 12))->GetTimeRange(),
+              tskv::TimeRange(2, 12));
+    EXPECT_EQ(column.Read(tskv::TimeRange(3, 12))->GetType(),
+              tskv::ColumnType::kLast);
+
+    EXPECT_EQ(column.Read(tskv::TimeRange(1, 100))->GetValues(), expected);
+    EXPECT_EQ(column.Read(tskv::TimeRange(1, 100))->GetTimeRange(),
+              tskv::TimeRange(2, 12));
+    EXPECT_EQ(column.Read(tskv::TimeRange(1, 100))->GetType(),
+              tskv::ColumnType::kLast);
+
+    EXPECT_EQ(column.Read(tskv::TimeRange(2, 11))->GetValues(), expected);
+    EXPECT_EQ(column.Read(tskv::TimeRange(2, 11))->GetTimeRange(),
+              tskv::TimeRange(2, 12));
+    EXPECT_EQ(column.Read(tskv::TimeRange(2, 11))->GetType(),
+              tskv::ColumnType::kLast);
+  }
+}
+
+TEST(LastColumn, Merge) {
+  // TODO: implement
+}
+
+TEST(LastColumn, Extract) {
+  tskv::LastColumn column(std::vector<double>{1, 2, 3, 4, 5},
+                          tskv::TimePoint(5), 5);
+  auto result = std::static_pointer_cast<tskv::IReadColumn>(column.Extract());
+  auto expected = std::vector<double>{1, 2, 3, 4, 5};
+  EXPECT_EQ(result->GetValues(), expected);
+  EXPECT_EQ(result->GetTimeRange(), tskv::TimeRange(5, 30));
+  EXPECT_EQ(result->GetType(), tskv::ColumnType::kLast);
+  EXPECT_TRUE(column.GetValues().empty());
+  EXPECT_EQ(column.GetTimeRange(), tskv::TimeRange(0, 0));
+}
+
+TEST(LastColumn, ToBytes) {
+  tskv::LastColumn column(std::vector<double>{1, 2, 3, 4, 5},
+                          tskv::TimePoint(45), 15);
+  auto bytes = column.ToBytes();
+  auto expected = std::vector<uint8_t>{
+      15, 0,  0, 0,   0,  0, 0, 0, 45, 0,  0, 0, 0,  0, 0, 0, 0,  0, 0,
+      0,  0,  0, 240, 63, 0, 0, 0, 0,  0,  0, 0, 64, 0, 0, 0, 0,  0, 0,
+      8,  64, 0, 0,   0,  0, 0, 0, 16, 64, 0, 0, 0,  0, 0, 0, 20, 64};
+  EXPECT_EQ(bytes, expected);
+}
+
+TEST(LastColumn, FromBytes) {
+  auto bytes = std::vector<uint8_t>{
+      15, 0,  0, 0,   0,  0, 0, 0, 45, 0,  0, 0, 0,  0, 0, 0, 0,  0, 0,
+      0,  0,  0, 240, 63, 0, 0, 0, 0,  0,  0, 0, 64, 0, 0, 0, 0,  0, 0,
+      8,  64, 0, 0,   0,  0, 0, 0, 16, 64, 0, 0, 0,  0, 0, 0, 20, 64};
+  auto read_column = std::static_pointer_cast<tskv::IReadColumn>(
+      tskv::FromBytes(bytes, tskv::ColumnType::kLast));
+  auto last_column = std::static_pointer_cast<tskv::LastColumn>(read_column);
+  auto expected = std::vector<double>{1, 2, 3, 4, 5};
+  EXPECT_EQ(last_column->GetValues(), expected);
+  EXPECT_EQ(last_column->GetTimeRange(), tskv::TimeRange(45, 120));
+  EXPECT_EQ(last_column->GetType(), tskv::ColumnType::kLast);
+}
+
+TEST(LastColumn, ScaleBuckets) {
+  {
+    tskv::LastColumn column(std::vector<double>{1, 2, 3, 4, 5},
+                            tskv::TimePoint(1), 1);
+    column.ScaleBuckets(2);
+    EXPECT_EQ(column.GetType(), tskv::ColumnType::kLast);
+    EXPECT_EQ(column.GetTimeRange(), tskv::TimeRange(0, 6));
+    auto expected = std::vector<double>{1, 3, 5};
+    EXPECT_EQ(column.GetValues(), expected);
+  }
+  {
+    tskv::LastColumn column(std::vector<double>{1, 4, 2, 3, 9, 15, 0, 1, 8, 5},
+                            tskv::TimePoint(2), 2);
+    column.ScaleBuckets(2);
+    EXPECT_EQ(column.GetType(), tskv::ColumnType::kLast);
+    EXPECT_EQ(column.GetTimeRange(), tskv::TimeRange(2, 22));
+    auto expected = std::vector<double>{1, 4, 2, 3, 9, 15, 0, 1, 8, 5};
+    EXPECT_EQ(column.GetValues(), expected);
+  }
+  {
+    tskv::LastColumn column(std::vector<double>{1, 4, 2, 3, 9, 15, 0, 1, 8, 5},
+                            tskv::TimePoint(2), 2);
+    column.ScaleBuckets(6);
+    EXPECT_EQ(column.GetType(), tskv::ColumnType::kLast);
+    EXPECT_EQ(column.GetTimeRange(), tskv::TimeRange(0, 24));
+    auto expected = std::vector<double>{4, 9, 1, 5};
+    EXPECT_EQ(column.GetValues(), expected);
+  }
+  {
+    tskv::LastColumn column(std::vector<double>{1, 4, 2, 3, 9, 15, 0, 1, 8},
+                            tskv::TimePoint(0), 2);
+    column.ScaleBuckets(4);
+    EXPECT_EQ(column.GetType(), tskv::ColumnType::kLast);
+    EXPECT_EQ(column.GetTimeRange(), tskv::TimeRange(0, 20));
+    auto expected = std::vector<double>{4, 3, 15, 1, 8};
+    EXPECT_EQ(column.GetValues(), expected);
+  }
+}
+
 TEST(RawTimestamps, Basic) {
   tskv::RawTimestampsColumn column(std::vector<uint64_t>{1, 2, 3, 4, 5});
   EXPECT_EQ(column.GetType(), tskv::ColumnType::kRawTimestamps);
