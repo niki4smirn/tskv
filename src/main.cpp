@@ -109,25 +109,24 @@ WriteResult Write(tskv::Storage& storage) {
            tskv::StoredAggregationType::kMax},
       },
       tskv::Memtable::Options{
-          .bucket_interval = tskv::Duration::Seconds(40),
+          .bucket_interval = tskv::Duration::Seconds(10),
           .max_bytes_size = 1000 * kMb,
-          .max_age = tskv::Duration::Hours(18),
+          .max_age = tskv::Duration::Hours(9),
           .store_raw = true,
       },
       tskv::PersistentStorageManager::Options{
           .levels = {{
-                         .bucket_interval = tskv::Duration::Seconds(40),
+                         .bucket_interval = tskv::Duration::Seconds(10),
                          .level_duration = tskv::Duration::Hours(20),
                          .store_raw = true,
                      },
                      {
-                         .bucket_interval = tskv::Duration::Minutes(30),
+                         .bucket_interval = tskv::Duration::Minutes(2),
                          .level_duration = tskv::Duration::Weeks(2),
                      }},
           .storage =
               std::make_unique<tskv::DiskStorage>(tskv::DiskStorage::Options{
                   .path = "./tmp/tskv",
-                  .cache_size = 3,
               }),
       },
   };
@@ -183,7 +182,7 @@ void Read(tskv::Storage& storage, const tskv::TimeRange& time_range,
   std::mt19937_64 gen(rd());
   std::uniform_int_distribution<uint64_t> start_dis(time_range.start,
                                                     time_range.end);
-  std::uniform_int_distribution<size_t> metric_id_dis(0, metric_ids.size() - 1);
+  std::uniform_int_distribution<size_t> metric_id_dis(0, 4);
   std::vector<Query> queries;
   for (int i = 0; i < kQueries; ++i) {
     auto metric_id = metric_ids[metric_id_dis(gen)];
