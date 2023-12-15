@@ -167,17 +167,20 @@ void SumColumn::ScaleBuckets(Duration bucket_interval) {
   }
 
   double sum = 0;
+  bool updated = false;
   size_t pos = 0;
   for (size_t i = 0; i < buckets_.size(); ++i) {
     sum += buckets_[i];
+    updated = true;
     if ((start_time_ + bucket_interval_ * i) / bucket_interval !=
         (start_time_ + bucket_interval_ * (i + 1)) / bucket_interval) {
       buckets_[pos++] = sum;
       sum = 0;
+      updated = false;
     }
   }
 
-  if (sum != 0) {
+  if (updated) {
     buckets_[pos++] = sum;
   }
 
@@ -311,17 +314,20 @@ void CountColumn::ScaleBuckets(Duration bucket_interval) {
   }
 
   size_t count = 0;
+  bool updated = false;
   size_t pos = 0;
   for (size_t i = 0; i < buckets_.size(); ++i) {
     count += buckets_[i];
+    updated = true;
     if ((start_time_ + bucket_interval_ * i) / bucket_interval !=
         (start_time_ + bucket_interval_ * (i + 1)) / bucket_interval) {
       buckets_[pos++] = count;
       count = 0;
+      updated = false;
     }
   }
 
-  if (count != 0) {
+  if (updated) {
     buckets_[pos++] = count;
   }
 
@@ -454,17 +460,20 @@ void MinColumn::ScaleBuckets(Duration bucket_interval) {
   }
 
   double min = std::numeric_limits<double>::max();
+  bool updated = false;
   size_t pos = 0;
   for (size_t i = 0; i < buckets_.size(); ++i) {
     min = std::min(min, buckets_[i]);
+    updated = true;
     if ((start_time_ + bucket_interval_ * i) / bucket_interval !=
         (start_time_ + bucket_interval_ * (i + 1)) / bucket_interval) {
       buckets_[pos++] = min;
       min = std::numeric_limits<double>::max();
+      updated = false;
     }
   }
 
-  if (min != std::numeric_limits<double>::max()) {
+  if (updated) {
     buckets_[pos++] = min;
   }
 
@@ -598,17 +607,20 @@ void MaxColumn::ScaleBuckets(Duration bucket_interval) {
   }
 
   double max = std::numeric_limits<double>::lowest();
+  bool updated = false;
   size_t pos = 0;
   for (size_t i = 0; i < buckets_.size(); ++i) {
     max = std::max(max, buckets_[i]);
+    updated = true;
     if ((start_time_ + bucket_interval_ * i) / bucket_interval !=
         (start_time_ + bucket_interval_ * (i + 1)) / bucket_interval) {
       buckets_[pos++] = max;
       max = std::numeric_limits<double>::lowest();
+      updated = false;
     }
   }
 
-  if (max != std::numeric_limits<double>::lowest()) {
+  if (updated) {
     buckets_[pos++] = max;
   }
 
@@ -742,17 +754,20 @@ void LastColumn::ScaleBuckets(Duration bucket_interval) {
   }
 
   double last = 0;
+  bool updated = false;
   size_t pos = 0;
   for (size_t i = 0; i < buckets_.size(); ++i) {
     last = buckets_[i];
+    updated = true;
     if ((start_time_ + bucket_interval_ * i) / bucket_interval !=
         (start_time_ + bucket_interval_ * (i + 1)) / bucket_interval) {
       buckets_[pos++] = last;
       last = 0;
+      updated = false;
     }
   }
 
-  if (last != 0) {
+  if (updated) {
     buckets_[pos++] = last;
   }
 
