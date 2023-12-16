@@ -69,6 +69,7 @@ enum class ColumnType {
   kRawTimestamps,
   kRawValues,
   kRawRead,
+  kAvg,
 };
 
 // I think, that Column should stores data vector with offsets and lengths, so
@@ -129,6 +130,7 @@ class AggregateColumn {
   friend class MinColumn;
   friend class MaxColumn;
   friend class LastColumn;
+  friend class AvgColumn;
 
  private:
   std::vector<double> buckets_;
@@ -155,6 +157,8 @@ class SumColumn : public IAggregateColumn {
   Column Extract() override;
   CompressedBytes ToBytes() const override;
 
+  friend class AvgColumn;
+
  private:
   AggregateColumn column_;
   std::vector<double>& buckets_;
@@ -176,6 +180,8 @@ class CountColumn : public IAggregateColumn {
   TimeRange GetTimeRange() const override;
   Column Extract() override;
   CompressedBytes ToBytes() const override;
+
+  friend class AvgColumn;
 
  private:
   AggregateColumn column_;
@@ -304,6 +310,29 @@ class ReadRawColumn : public IReadColumn {
  private:
   std::shared_ptr<RawTimestampsColumn> timestamps_column_;
   std::shared_ptr<RawValuesColumn> values_column_;
+};
+
+class AvgColumn : public IReadColumn {
+ public:
+  AvgColumn(std::vector<double> buckets, const TimePoint& start_time,
+            Duration bucket_interval);
+  AvgColumn(std::shared_ptr<SumColumn> sum_column,
+            std::shared_ptr<CountColumn> count_column);
+  ColumnType GetType() const override;
+  void Merge(Column column) override;
+  ReadColumn Read(const TimeRange& time_range) const override;
+  void Write(const InputTimeSeries& time_series) override;
+  std::vector<Value> GetValues() const override;
+  TimeRange GetTimeRange() const override;
+  Column Extract() override;
+
+ private:
+  static AggregateColumn CreateAvgAggregateColumn(
+      std::shared_ptr<SumColumn> sum_column,
+      std::shared_ptr<CountColumn> count_column);
+
+ private:
+  AggregateColumn column_;
 };
 
 template <typename T>

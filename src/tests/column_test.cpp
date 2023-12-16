@@ -1025,7 +1025,30 @@ TEST(LastColumn, Read) {
 }
 
 TEST(LastColumn, Merge) {
-  // TODO: implement
+  {
+    tskv::LastColumn column1(std::vector<double>{1, 2, 3, 4, 5},
+                             tskv::TimePoint(1), 1);
+    tskv::LastColumn column2(std::vector<double>{5, 4, 3}, tskv::TimePoint(3),
+                             1);
+    std::shared_ptr<tskv::IReadColumn> column2_read =
+        std::make_shared<tskv::LastColumn>(column2);
+    column1.Merge(column2_read);
+    auto expected = std::vector<double>{1, 2, 5, 4, 3};
+    EXPECT_EQ(column1.GetValues(), expected);
+    EXPECT_EQ(column1.GetTimeRange(), tskv::TimeRange(1, 6));
+  }
+  {
+    tskv::LastColumn column1(std::vector<double>{1, 2, 3}, tskv::TimePoint(3),
+                             3);
+    tskv::LastColumn column2(std::vector<double>{10, 20}, tskv::TimePoint(9),
+                             3);
+    std::shared_ptr<tskv::IReadColumn> column2_read =
+        std::make_shared<tskv::LastColumn>(column2);
+    column1.Merge(column2_read);
+    auto expected = std::vector<double>{1, 2, 10, 20};
+    EXPECT_EQ(column1.GetValues(), expected);
+    EXPECT_EQ(column1.GetTimeRange(), tskv::TimeRange(3, 15));
+  }
 }
 
 TEST(LastColumn, Extract) {
@@ -1172,6 +1195,11 @@ TEST(RawTimestamps, FromBytes) {
   EXPECT_EQ(column->GetType(), tskv::ColumnType::kRawTimestamps);
   auto raw_column = std::static_pointer_cast<tskv::RawTimestampsColumn>(column);
   EXPECT_EQ(raw_column->GetTimeRange(), tskv::TimeRange(1, 6));
+}
+
+TEST(RawTimestamps, GetTimeRange) {
+  tskv::RawTimestampsColumn column(std::vector<uint64_t>{1, 2, 4, 6, 8, 9});
+  EXPECT_EQ(column.GetTimeRange(), tskv::TimeRange(1, 10));
 }
 
 TEST(RawValues, Basic) {
@@ -1342,4 +1370,88 @@ TEST(ReadRawColumn, Extract) {
   EXPECT_EQ(result->GetValues(), expected_vals);
   EXPECT_TRUE(column.GetTimestamps().empty());
   EXPECT_TRUE(column.GetValues().empty());
+}
+
+TEST(AvgColumn, Basic) {
+  {
+    tskv::AvgColumn column(std::vector<double>{1, 2, 3, 4, 5},
+                           tskv::TimePoint(1), 1);
+    EXPECT_EQ(column.GetType(), tskv::ColumnType::kAvg);
+    auto expected = std::vector<double>{1, 2, 3, 4, 5};
+    EXPECT_EQ(column.GetValues(), expected);
+    EXPECT_EQ(column.GetTimeRange(), tskv::TimeRange(1, 6));
+  }
+  {
+    auto sum_column = std::make_shared<tskv::SumColumn>(
+        std::vector<double>{1, 2, 3, 4, 5}, tskv::TimePoint(1), 1);
+    auto count_column = std::make_shared<tskv::CountColumn>(
+        std::vector<double>{2, 2, 1, 2, 1}, tskv::TimePoint(1), 1);
+    tskv::AvgColumn column(sum_column, count_column);
+    EXPECT_EQ(column.GetType(), tskv::ColumnType::kAvg);
+    auto expected = std::vector<double>{0.5, 1, 3, 2, 5};
+    EXPECT_EQ(column.GetValues(), expected);
+    EXPECT_EQ(column.GetTimeRange(), tskv::TimeRange(1, 6));
+  }
+}
+
+TEST(AvgColumn, Read) {
+  {
+    tskv::AvgColumn column(std::vector<double>{1, 2, 3, 4, 5},
+                           tskv::TimePoint(1), 1);
+    auto expected = std::vector<double>{1, 2, 3, 4, 5};
+    EXPECT_EQ(column.Read(tskv::TimeRange(1, 6))->GetValues(), expected);
+    EXPECT_EQ(column.Read(tskv::TimeRange(1, 6))->GetTimeRange(),
+              tskv::TimeRange(1, 6));
+    EXPECT_EQ(column.Read(tskv::TimeRange(1, 6))->GetType(),
+              tskv::ColumnType::kAvg);
+
+    expected = std::vector<double>{1, 2, 3, 4};
+    EXPECT_EQ(column.Read(tskv::TimeRange(1, 5))->GetValues(), expected);
+    EXPECT_EQ(column.Read(tskv::TimeRange(1, 5))->GetTimeRange(),
+              tskv::TimeRange(1, 5));
+    EXPECT_EQ(column.Read(tskv::TimeRange(1, 5))->GetType(),
+              tskv::ColumnType::kAvg);
+
+    expected = std::vector<double>{2, 3, 4, 5};
+    EXPECT_EQ(column.Read(tskv::TimeRange(2, 6))->GetValues(), expected);
+    EXPECT_EQ(column.Read(tskv::TimeRange(2, 6))->GetTimeRange(),
+              tskv::TimeRange(2, 6));
+    EXPECT_EQ(column.Read(tskv::TimeRange(2, 6))->GetType(),
+              tskv::ColumnType::kAvg);
+
+    expected = std::vector<double>{3};
+    EXPECT_EQ(column.Read(tskv::TimeRange(3, 4))->GetValues(), expected);
+    EXPECT_EQ(column.Read(tskv::TimeRange(3, 4))->GetTimeRange(),
+              tskv::TimeRange(3, 4));
+    EXPECT_EQ(column.Read(tskv::TimeRange(3, 4))->GetType(),
+              tskv::ColumnType::kAvg);
+  }
+  {
+    tskv::AvgColumn column(std::vector<double>{1, 2, 3, 4, 5},
+                           tskv::TimePoint(2), 2);
+    auto expected = std::vector<double>{1, 2, 3, 4, 5};
+    EXPECT_EQ(column.Read(tskv::TimeRange(2, 12))->GetValues(), expected);
+    EXPECT_EQ(column.Read(tskv::TimeRange(2, 12))->GetTimeRange(),
+              tskv::TimeRange(2, 12));
+    EXPECT_EQ(column.Read(tskv::TimeRange(2, 12))->GetType(),
+              tskv::ColumnType::kAvg);
+
+    EXPECT_EQ(column.Read(tskv::TimeRange(3, 12))->GetValues(), expected);
+    EXPECT_EQ(column.Read(tskv::TimeRange(3, 12))->GetTimeRange(),
+              tskv::TimeRange(2, 12));
+    EXPECT_EQ(column.Read(tskv::TimeRange(3, 12))->GetType(),
+              tskv::ColumnType::kAvg);
+
+    EXPECT_EQ(column.Read(tskv::TimeRange(1, 100))->GetValues(), expected);
+    EXPECT_EQ(column.Read(tskv::TimeRange(1, 100))->GetTimeRange(),
+              tskv::TimeRange(2, 12));
+    EXPECT_EQ(column.Read(tskv::TimeRange(1, 100))->GetType(),
+              tskv::ColumnType::kAvg);
+
+    EXPECT_EQ(column.Read(tskv::TimeRange(2, 11))->GetValues(), expected);
+    EXPECT_EQ(column.Read(tskv::TimeRange(2, 11))->GetTimeRange(),
+              tskv::TimeRange(2, 12));
+    EXPECT_EQ(column.Read(tskv::TimeRange(2, 11))->GetType(),
+              tskv::ColumnType::kAvg);
+  }
 }

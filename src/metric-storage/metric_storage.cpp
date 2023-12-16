@@ -16,8 +16,15 @@ MetricStorage::MetricStorage(const Options& options)
 Column MetricStorage::Read(const TimeRange& time_range,
                            AggregationType aggregation_type) const {
   if (aggregation_type == AggregationType::kAvg) {
-    // TODO: implement
-    assert(false);
+    auto read1 = Read(time_range, AggregationType::kSum);
+    auto read2 = Read(time_range, AggregationType::kCount);
+    if (!read1 || !read2) {
+      return {};
+    }
+    auto sum_column = std::dynamic_pointer_cast<SumColumn>(read1);
+    auto count_column = std::dynamic_pointer_cast<CountColumn>(read2);
+    return std::make_shared<AvgColumn>(std::move(sum_column),
+                                       std::move(count_column));
   }
 
   auto stored_aggregation = ToStoredAggregationType(aggregation_type);

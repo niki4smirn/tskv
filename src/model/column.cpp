@@ -67,6 +67,10 @@ ReadColumn AggregateColumn::Read(const TimeRange& time_range,
       return std::make_shared<LastColumn>(std::move(data), new_start_time,
                                           bucket_interval_);
     }
+    case ColumnType::kAvg: {
+      return std::make_shared<AvgColumn>(std::move(data), new_start_time,
+                                         bucket_interval_);
+    }
     default:
       throw std::runtime_error("Unknown column type");
   }
@@ -130,7 +134,9 @@ Column AggregateColumn::Extract(ColumnType column_type) {
       break;
     }
     default:
-      throw std::runtime_error("Unknown column type");
+      throw std::runtime_error("Type " +
+                               std::to_string(static_cast<int>(column_type)) +
+                               " is not to extract");
   }
   buckets_ = {};
   start_time_ = 0;
@@ -815,7 +821,6 @@ void LastColumn::Merge(Column column) {
   auto intersection_start =
       intersection_end_opt ? *intersection_start_opt : buckets_.size();
   for (size_t i = intersection_start; i < intersection_end; ++i) {
-    // WARNING: probably wrong
     buckets_[i] = last_column->buckets_[i - intersection_start];
   }
 
@@ -1083,6 +1088,69 @@ std::vector<TimePoint> ReadRawColumn::GetTimestamps() const {
   return {timestamps.begin(), timestamps.end()};
 }
 
+AvgColumn::AvgColumn(std::vector<double> buckets, const TimePoint& start_time,
+                     Duration bucket_interval)
+    : column_(std::move(buckets), start_time, bucket_interval) {}
+
+AggregateColumn AvgColumn::CreateAvgAggregateColumn(
+    std::shared_ptr<SumColumn> sum_column,
+    std::shared_ptr<CountColumn> count_column) {
+  assert(sum_column && count_column);
+  if (sum_column->bucket_interval_ != count_column->bucket_interval_) {
+    throw std::runtime_error(
+        "Can't get avg of columns with different bucket "
+        "intervals");
+  }
+  if (sum_column->start_time_ != count_column->start_time_) {
+    throw std::runtime_error(
+        "Can't get avg of columns with different start "
+        "times");
+  }
+  std::vector<double> buckets;
+  for (size_t i = 0; i < sum_column->buckets_.size(); ++i) {
+    if (count_column->buckets_[i] == 0) {
+      buckets.push_back(0);
+    } else {
+      buckets.push_back(sum_column->buckets_[i] / count_column->buckets_[i]);
+    }
+  }
+  return AggregateColumn(std::move(buckets), sum_column->start_time_,
+                         sum_column->bucket_interval_);
+}
+
+AvgColumn::AvgColumn(std::shared_ptr<SumColumn> sum_column,
+                     std::shared_ptr<CountColumn> count_column)
+    : column_(CreateAvgAggregateColumn(std::move(sum_column),
+                                       std::move(count_column))) {}
+
+ColumnType AvgColumn::GetType() const {
+  return ColumnType::kAvg;
+}
+
+void AvgColumn::Merge(Column column) {
+  assert(false);
+}
+
+ReadColumn AvgColumn::Read(const TimeRange& time_range) const {
+  return column_.Read(time_range, ColumnType::kAvg);
+}
+
+void AvgColumn::Write(const InputTimeSeries& time_series) {
+  assert(false);
+}
+
+std::vector<Value> AvgColumn::GetValues() const {
+  return column_.GetValues();
+}
+
+TimeRange AvgColumn::GetTimeRange() const {
+  return column_.GetTimeRange();
+}
+
+Column AvgColumn::Extract() {
+  return column_.Extract(ColumnType::kAvg);
+}
+
 Column CreateRawColumn(ColumnType column_type) {
   switch (column_type) {
     case ColumnType::kRawValues:
@@ -1108,6 +1176,9 @@ Column CreateAggregatedColumn(ColumnType column_type,
     }
     case ColumnType::kMax: {
       return CreateAggregatedColumn<MaxColumn>(bucket_interval);
+    }
+    case ColumnType::kLast: {
+      return CreateAggregatedColumn<LastColumn>(bucket_interval);
     }
     default:
       throw std::runtime_error("Unsupported column type");

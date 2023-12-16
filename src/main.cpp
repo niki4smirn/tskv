@@ -103,10 +103,13 @@ WriteResult Write(tskv::Storage& storage) {
 
   tskv::MetricStorage::Options default_options = {
       tskv::MetricOptions{
-          {tskv::StoredAggregationType::kSum,
-           tskv::StoredAggregationType::kCount,
-           tskv::StoredAggregationType::kMin,
-           tskv::StoredAggregationType::kMax},
+          {
+              tskv::StoredAggregationType::kSum,
+              tskv::StoredAggregationType::kCount,
+              tskv::StoredAggregationType::kMin,
+              tskv::StoredAggregationType::kMax,
+              tskv::StoredAggregationType::kLast,
+          },
       },
       tskv::Memtable::Options{
           .bucket_interval = tskv::Duration::Seconds(10),
@@ -192,24 +195,23 @@ void Read(tskv::Storage& storage, const tskv::TimeRange& time_range,
       std::swap(start, end);
     }
     auto aggregation_type = static_cast<tskv::AggregationType>(
-        std::uniform_int_distribution<>(1, 4)(gen));
+        std::uniform_int_distribution<>(1, 6)(gen));
     queries.push_back({metric_id, {start, end}, aggregation_type});
   }
 
   std::cerr << "starting read" << std::endl;
 
-  std::vector<tskv::Column> result(kQueries);
-  size_t idx = 0;
+  tskv::Column result;
   auto start = std::chrono::steady_clock::now();
   for (const auto& query : queries) {
-    result[idx++] =
-        storage.Read(query.metric_id, query.time_range, query.aggregation_type);
+    result = storage.Read(query.metric_id, query.time_range, query.aggregation_type);
   }
   auto end = std::chrono::steady_clock::now();
   auto ms_time =
       std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
           .count();
   std::cerr << "query time: " << ms_time << "ms" << std::endl;
+  std::cerr << result << std::endl;
 }
 
 int main() {
