@@ -16,7 +16,6 @@ DiskStorage::DiskStorage(const Options& options) : path_(options.path) {
 }
 
 DiskStorage::Metadata DiskStorage::GetMetadata() const {
-  // TODO: implement
   assert(false);
 }
 

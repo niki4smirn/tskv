@@ -18,7 +18,7 @@ class PersistentStorageManager {
   };
 
  public:
-  PersistentStorageManager(const Options& options);
+  explicit PersistentStorageManager(const Options& options);
   void Write(const SerializableColumns& columns);
 
   Column Read(const TimeRange& time_range,

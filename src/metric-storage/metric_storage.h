@@ -26,6 +26,7 @@ class MetricStorage {
   Column Read(const TimeRange& time_range,
               AggregationType aggregation_type) const;
   void Write(const InputTimeSeries& time_series);
+  void Flush();
 
  private:
   Memtable memtable_;

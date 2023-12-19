@@ -48,17 +48,21 @@ void MetricStorage::Write(const InputTimeSeries& time_series) {
   memtable_.Write(time_series);
 
   if (memtable_.NeedFlush()) {
-    auto columns = memtable_.ExtractColumns();
-    SerializableColumns serializable_columns;
-    serializable_columns.reserve(columns.size());
-    for (auto& column : columns) {
-      auto serializable_column =
-          std::dynamic_pointer_cast<ISerializableColumn>(std::move(column));
-      assert(serializable_column);
-      serializable_columns.emplace_back(std::move(serializable_column));
-    }
-    persistent_storage_manager_.Write(serializable_columns);
+    Flush();
   }
+}
+
+void MetricStorage::Flush() {
+  auto columns = memtable_.ExtractColumns();
+  SerializableColumns serializable_columns;
+  serializable_columns.reserve(columns.size());
+  for (auto& column : columns) {
+    auto serializable_column =
+        std::dynamic_pointer_cast<ISerializableColumn>(std::move(column));
+    assert(serializable_column);
+    serializable_columns.emplace_back(std::move(serializable_column));
+  }
+  persistent_storage_manager_.Write(serializable_columns);
 }
 
 }  // namespace tskv

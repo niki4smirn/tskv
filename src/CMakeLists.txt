@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.19)
-project(ts-kv-blob)
+project(tskv)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
@@ -18,7 +18,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(googletest)
 
-add_executable(ts-kv-blob
+add_executable(tskv
         level/level.cpp
         main.cpp
         memtable/memtable.cpp
@@ -32,7 +32,7 @@ add_executable(ts-kv-blob
 )
 
 enable_testing()
-add_executable(ts-kv-blob-test
+add_executable(tskv-test
         level/level.cpp
         memtable/memtable.cpp
         metric-storage/metric_storage.cpp
@@ -47,9 +47,9 @@ add_executable(ts-kv-blob-test
         tests/memtable_test.cpp
 )
 
-target_link_libraries(ts-kv-blob-test GTest::gtest_main gmock)
+target_link_libraries(tskv-test GTest::gtest_main gmock)
 
 include(GoogleTest)
-gtest_discover_tests(ts-kv-blob-test)
+gtest_discover_tests(tskv-test)
 
 

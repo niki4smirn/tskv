@@ -110,6 +110,7 @@ using ReadColumns = std::vector<ReadColumn>;
 class IAggregateColumn : public ISerializableColumn, public IReadColumn {
  public:
   virtual void ScaleBuckets(Duration bucket_interval) = 0;
+  virtual size_t GetBucketsNum() const = 0;
 };
 
 class AggregateColumn {
@@ -134,7 +135,7 @@ class AggregateColumn {
 
  private:
   std::vector<double> buckets_;
-  TimePoint start_time_;
+  TimePoint start_time_{};
   Duration bucket_interval_;
 };
 
@@ -156,6 +157,7 @@ class SumColumn : public IAggregateColumn {
   TimeRange GetTimeRange() const override;
   Column Extract() override;
   CompressedBytes ToBytes() const override;
+  size_t GetBucketsNum() const override;
 
   friend class AvgColumn;
 
@@ -180,6 +182,7 @@ class CountColumn : public IAggregateColumn {
   TimeRange GetTimeRange() const override;
   Column Extract() override;
   CompressedBytes ToBytes() const override;
+  size_t GetBucketsNum() const override;
 
   friend class AvgColumn;
 
@@ -204,6 +207,7 @@ class MinColumn : public IAggregateColumn {
   TimeRange GetTimeRange() const override;
   Column Extract() override;
   CompressedBytes ToBytes() const override;
+  size_t GetBucketsNum() const override;
 
  private:
   AggregateColumn column_;
@@ -226,6 +230,7 @@ class MaxColumn : public IAggregateColumn {
   TimeRange GetTimeRange() const override;
   Column Extract() override;
   CompressedBytes ToBytes() const override;
+  size_t GetBucketsNum() const override;
 
  private:
   AggregateColumn column_;
@@ -248,6 +253,7 @@ class LastColumn : public IAggregateColumn {
   TimeRange GetTimeRange() const override;
   Column Extract() override;
   CompressedBytes ToBytes() const override;
+  size_t GetBucketsNum() const override;
 
  private:
   AggregateColumn column_;

@@ -1,11 +1,9 @@
 #include <gtest/gtest.h>
-#include <cstdint>
 #include <memory>
 
 #include "model/column.h"
 #include "model/model.h"
 
-// TODO: test scale buckets
 TEST(SumColumn, Basic) {
   tskv::SumColumn column(std::vector<double>{1, 2, 3, 4, 5}, tskv::TimePoint(1),
                          1);

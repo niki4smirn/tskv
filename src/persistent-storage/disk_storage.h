@@ -2,7 +2,6 @@
 
 #include <filesystem>
 
-#include "lru-cache/lru-cache.h"
 #include "persistent_storage.h"
 
 namespace tskv {

@@ -132,10 +132,18 @@ size_t Memtable::GetBytesSize() const {
       case ColumnType::kSum:
       case ColumnType::kCount:
       case ColumnType::kMin:
-      case ColumnType::kMax: {
+      case ColumnType::kMax:
+      case ColumnType::kLast: {
         auto agg_column = std::dynamic_pointer_cast<IAggregateColumn>(column);
         size_t buckets_num =
             agg_column->GetTimeRange().GetDuration() / options_.bucket_interval;
+        size += buckets_num * sizeof(Value);
+        break;
+      }
+      case ColumnType::kAvg: {
+        auto avg_column = std::dynamic_pointer_cast<AvgColumn>(column);
+        size_t buckets_num =
+            avg_column->GetTimeRange().GetDuration() / options_.bucket_interval;
         size += buckets_num * sizeof(Value);
         break;
       }

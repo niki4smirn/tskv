@@ -1,16 +1,13 @@
-#include "metric-storage/metric_storage.h"
-#include "model/aggregations.h"
-#include "model/column.h"
-#include "model/model.h"
-#include "persistent-storage/disk_storage.h"
-#include "persistent-storage/persistent_storage_manager.h"
-#include "storage/storage.h"
-
 #include <fstream>
 #include <iostream>
 #include <random>
-#include <ranges>
+#include <string>
 #include <vector>
+
+#include "model/column.h"
+#include "model/model.h"
+#include "persistent-storage/disk_storage.h"
+#include "storage/storage.h"
 
 std::vector<std::string> Split(const std::string& s,
                                const std::string& delimiter) {
@@ -31,11 +28,12 @@ std::vector<std::string> Split(const std::string& s,
 struct WriteResult {
   tskv::TimeRange time_range;
   std::vector<tskv::MetricId> metrid_ids;
+  int64_t write_time;
 };
 
 WriteResult Write(tskv::Storage& storage) {
   auto start = std::chrono::steady_clock::now();
-  std::ifstream input("../../test_data/timescaledb-data-5-1s");
+  std::ifstream input("../../test_data/timescaledb-data-8-1s-24h");
   std::string line;
   getline(input, line);
   std::unordered_map<std::string, std::vector<std::string>> metric_names;
@@ -90,17 +88,6 @@ WriteResult Write(tskv::Storage& storage) {
   }
   input.close();
 
-  auto end = std::chrono::steady_clock::now();
-
-  std::cerr << "read time: "
-            << std::chrono::duration_cast<std::chrono::milliseconds>(end -
-                                                                     start)
-                   .count()
-            << "ms" << std::endl;
-
-  std::cerr << "starting write" << std::endl;
-  start = std::chrono::steady_clock::now();
-
   tskv::MetricStorage::Options default_options = {
       tskv::MetricOptions{
           {
@@ -113,18 +100,18 @@ WriteResult Write(tskv::Storage& storage) {
       },
       tskv::Memtable::Options{
           .bucket_interval = tskv::Duration::Seconds(10),
-          .max_bytes_size = 1000 * kMb,
-          .max_age = tskv::Duration::Hours(9),
+          .max_bytes_size = 100 * kMb,
+          .max_age = tskv::Duration::Hours(5),
           .store_raw = true,
       },
       tskv::PersistentStorageManager::Options{
           .levels = {{
                          .bucket_interval = tskv::Duration::Seconds(10),
-                         .level_duration = tskv::Duration::Hours(20),
+                         .level_duration = tskv::Duration::Hours(10),
                          .store_raw = true,
                      },
                      {
-                         .bucket_interval = tskv::Duration::Minutes(2),
+                         .bucket_interval = tskv::Duration::Seconds(30),
                          .level_duration = tskv::Duration::Weeks(2),
                      }},
           .storage =
@@ -151,7 +138,6 @@ WriteResult Write(tskv::Storage& storage) {
       storage.Write(metric_ids[hash], cur_time_series);
       wrote = true;
     }
-
     ++idx;
 
     if (!wrote) {
@@ -159,64 +145,128 @@ WriteResult Write(tskv::Storage& storage) {
     }
   }
 
-  end = std::chrono::steady_clock::now();
-  std::cerr << "write time: "
-            << std::chrono::duration_cast<std::chrono::milliseconds>(end -
-                                                                     start)
-                   .count()
-            << "ms" << std::endl;
+  storage.Flush();
+
+  auto end = std::chrono::steady_clock::now();
+  auto ms_time =
+      std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
+          .count();
   std::vector<tskv::MetricId> metric_ids_vec;
   for (const auto& [_, metric_id] : metric_ids) {
     metric_ids_vec.push_back(metric_id);
   }
-  return {{*min, *max}, metric_ids_vec};
+  return {{*min, *max}, metric_ids_vec, ms_time};
 }
 
 struct Query {
-  tskv::MetricId metric_id;
+  std::vector<tskv::MetricId> metric_ids;
   tskv::TimeRange time_range;
   tskv::AggregationType aggregation_type;
 };
 
-void Read(tskv::Storage& storage, const tskv::TimeRange& time_range,
-          const std::vector<tskv::MetricId>& metric_ids) {
-  constexpr int kQueries = 1e5;
-  std::random_device rd;
-  std::mt19937_64 gen(rd());
+struct SingleGroupByParams {
+  size_t metric_count;
+  size_t host_count;
+  tskv::Duration aggregation_window;
+  tskv::Duration query_range;
+
+  friend std::ostream& operator<<(std::ostream& os,
+                                  const SingleGroupByParams& params) {
+    return os << "metric_count: " << params.metric_count
+              << ", aggregation_window: " << params.aggregation_window
+              << ", query_range: " << params.query_range;
+  }
+};
+
+tskv::Column MergeColumns(const std::vector<tskv::Column>& columns) {
+  if (columns.empty()) {
+    return {};
+  }
+  auto result = columns[0];
+  for (size_t i = 1; i < columns.size(); ++i) {
+    result->Merge(columns[i]);
+  }
+  return result;
+}
+
+// returns requsts per second
+double SingleGroupBy(tskv::Storage& storage, const tskv::TimeRange& time_range,
+                     const std::vector<tskv::MetricId>& metric_ids,
+                     const SingleGroupByParams& params) {
+  constexpr uint64_t kQueries = 1e4;
+  constexpr int kSeed = 123;
+  std::mt19937_64 gen(kSeed);
+  auto start_dis_end = time_range.end - params.query_range;
   std::uniform_int_distribution<uint64_t> start_dis(time_range.start,
-                                                    time_range.end);
-  std::uniform_int_distribution<size_t> metric_id_dis(0, 4);
+                                                    start_dis_end);
+  std::uniform_int_distribution<size_t> metric_id_dis(0, metric_ids.size() - 1);
   std::vector<Query> queries;
   for (int i = 0; i < kQueries; ++i) {
-    auto metric_id = metric_ids[metric_id_dis(gen)];
-    auto start = start_dis(gen);
-    auto end = start_dis(gen);
-    if (start > end) {
-      std::swap(start, end);
+    std::vector<tskv::MetricId> metric_ids_vec;
+    for (size_t j = 0; j < params.metric_count * params.host_count; ++j) {
+      metric_ids_vec.push_back(metric_ids[metric_id_dis(gen)]);
     }
-    auto aggregation_type = static_cast<tskv::AggregationType>(
-        std::uniform_int_distribution<>(1, 6)(gen));
-    queries.push_back({metric_id, {start, end}, aggregation_type});
+    auto start = start_dis(gen);
+    auto end = start + params.query_range;
+    queries.push_back(
+        {metric_ids_vec, {start, end}, tskv::AggregationType::kMax});
   }
 
-  std::cerr << "starting read" << std::endl;
-
-  tskv::Column result;
+  tskv::Column temp_result;
+  std::vector<tskv::Column> buffer;
   auto start = std::chrono::steady_clock::now();
   for (const auto& query : queries) {
-    result = storage.Read(query.metric_id, query.time_range, query.aggregation_type);
+
+    for (const auto& metric_id : query.metric_ids) {
+      auto result =
+          storage.Read(metric_id, query.time_range, query.aggregation_type);
+      auto max_column = std::dynamic_pointer_cast<tskv::MaxColumn>(result);
+      max_column->ScaleBuckets(params.aggregation_window);
+      buffer.push_back(std::move(result));
+    }
+
+    for (int i = 0; i < params.metric_count; ++i) {
+      std::vector<tskv::Column> to_merge;
+      for (int j = 0; j < params.host_count; ++j) {
+        to_merge.push_back(std::move(buffer.back()));
+        buffer.pop_back();
+      }
+      temp_result = MergeColumns(to_merge);
+    }
   }
   auto end = std::chrono::steady_clock::now();
   auto ms_time =
       std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
           .count();
-  std::cerr << "query time: " << ms_time << "ms" << std::endl;
-  std::cerr << result << std::endl;
+  (void)temp_result;
+  return kQueries * 1000.0 / ms_time;
 }
 
 int main() {
   tskv::Storage storage;
-  auto [time_range, metric_ids] = Write(storage);
-  Read(storage, time_range, metric_ids);
-  return 0;
+  auto [time_range, metric_ids, write_time] = Write(storage);
+  std::cout << "write time: " << write_time << "ms" << std::endl;
+  auto five_minutes = tskv::Duration::Minutes(5);
+  auto one_hour = tskv::Duration::Hours(1);
+  auto twelve_hours = tskv::Duration::Hours(12);
+  auto params = std::vector<SingleGroupByParams>{
+      {1, 1, five_minutes, one_hour},     {1, 1, five_minutes, twelve_hours},
+      {1, 8, five_minutes, one_hour},     {5, 1, five_minutes, one_hour},
+      {5, 1, five_minutes, twelve_hours}, {5, 8, five_minutes, one_hour},
+  };
+
+  std::vector<double> read_rps;
+  read_rps.reserve(params.size());
+for (const auto& param : params) {
+    read_rps.push_back(SingleGroupBy(storage, time_range, metric_ids, param));
+  }
+
+  std::ofstream output("performance.txt");
+  output << "write time: " << write_time << "ms" << std::endl;
+  for (size_t i = 0; i < params.size(); ++i) {
+    output << params[i] << " read rps: " << read_rps[i] << std::endl;
+  }
+  output.close();
+
+  std::filesystem::remove_all("./tmp/tskv");
 }

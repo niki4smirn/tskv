@@ -72,4 +72,10 @@ Column Storage::Read(MetricId id, const TimeRange& time_range,
   return it->second.Read(time_range, aggregation_type);
 }
 
+void Storage::Flush() {
+  for (auto& [_, metric] : metrics_) {
+    metric.Flush();
+  }
+}
+
 }  // namespace tskv

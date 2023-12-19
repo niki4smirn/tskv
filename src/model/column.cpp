@@ -197,7 +197,6 @@ void SumColumn::ScaleBuckets(Duration bucket_interval) {
   buckets_.resize(new_buckets_sz);
 }
 
-// column interval should start further than this->time_range.start
 void SumColumn::Merge(Column column) {
   if (!column) {
     return;
@@ -210,9 +209,11 @@ void SumColumn::Merge(Column column) {
     return;
   }
   if (sum_column->bucket_interval_ != bucket_interval_) {
-    throw std::runtime_error(
-        "Can't merge columns with different bucket "
-        "intervals");
+    if (sum_column->bucket_interval_ < bucket_interval_) {
+      sum_column->ScaleBuckets(bucket_interval_);
+    } else {
+      ScaleBuckets(sum_column->bucket_interval_);
+    }
   }
   if (buckets_.empty()) {
     buckets_ = sum_column->buckets_;
@@ -291,6 +292,10 @@ CompressedBytes SumColumn::ToBytes() const {
   return column_.ToBytes();
 }
 
+size_t SumColumn::GetBucketsNum() const {
+  return buckets_.size();
+}
+
 CountColumn::CountColumn(Duration bucket_interval)
     : column_(bucket_interval),
       buckets_(column_.buckets_),
@@ -356,9 +361,11 @@ void CountColumn::Merge(Column column) {
     return;
   }
   if (count_column->bucket_interval_ != bucket_interval_) {
-    throw std::runtime_error(
-        "Can't merge columns with different bucket "
-        "intervals");
+    if (count_column->bucket_interval_ < bucket_interval_) {
+      count_column->ScaleBuckets(bucket_interval_);
+    } else {
+      ScaleBuckets(count_column->bucket_interval_);
+    }
   }
   if (buckets_.empty()) {
     buckets_ = count_column->buckets_;
@@ -437,6 +444,10 @@ CompressedBytes CountColumn::ToBytes() const {
   return column_.ToBytes();
 }
 
+size_t CountColumn::GetBucketsNum() const {
+  return buckets_.size();
+}
+
 MinColumn::MinColumn(Duration bucket_interval)
     : column_(bucket_interval),
       buckets_(column_.buckets_),
@@ -502,9 +513,11 @@ void MinColumn::Merge(Column column) {
     return;
   }
   if (min_column->bucket_interval_ != bucket_interval_) {
-    throw std::runtime_error(
-        "Can't merge columns with different bucket "
-        "intervals");
+    if (min_column->bucket_interval_ < bucket_interval_) {
+      min_column->ScaleBuckets(bucket_interval_);
+    } else {
+      ScaleBuckets(min_column->bucket_interval_);
+    }
   }
   if (buckets_.empty()) {
     buckets_ = min_column->buckets_;
@@ -584,6 +597,10 @@ CompressedBytes MinColumn::ToBytes() const {
   return column_.ToBytes();
 }
 
+size_t MinColumn::GetBucketsNum() const {
+  return buckets_.size();
+}
+
 MaxColumn::MaxColumn(Duration bucket_interval)
     : column_(bucket_interval),
       buckets_(column_.buckets_),
@@ -649,9 +666,11 @@ void MaxColumn::Merge(Column column) {
     return;
   }
   if (max_column->bucket_interval_ != bucket_interval_) {
-    throw std::runtime_error(
-        "Can't merge columns with different bucket "
-        "intervals");
+    if (max_column->bucket_interval_ < bucket_interval_) {
+      max_column->ScaleBuckets(bucket_interval_);
+    } else {
+      ScaleBuckets(max_column->bucket_interval_);
+    }
   }
   if (buckets_.empty()) {
     buckets_ = max_column->buckets_;
@@ -731,6 +750,10 @@ CompressedBytes MaxColumn::ToBytes() const {
   return column_.ToBytes();
 }
 
+size_t MaxColumn::GetBucketsNum() const {
+  return buckets_.size();
+}
+
 LastColumn::LastColumn(Duration bucket_interval)
     : column_(bucket_interval),
       buckets_(column_.buckets_),
@@ -796,9 +819,11 @@ void LastColumn::Merge(Column column) {
     return;
   }
   if (last_column->bucket_interval_ != bucket_interval_) {
-    throw std::runtime_error(
-        "Can't merge columns with different bucket "
-        "intervals");
+    if (last_column->bucket_interval_ < bucket_interval_) {
+      last_column->ScaleBuckets(bucket_interval_);
+    } else {
+      ScaleBuckets(last_column->bucket_interval_);
+    }
   }
   if (buckets_.empty()) {
     buckets_ = last_column->buckets_;
@@ -875,6 +900,10 @@ Column LastColumn::Extract() {
 
 CompressedBytes LastColumn::ToBytes() const {
   return column_.ToBytes();
+}
+
+size_t LastColumn::GetBucketsNum() const {
+  return buckets_.size();
 }
 
 RawTimestampsColumn::RawTimestampsColumn(std::vector<TimePoint> timestamps)
@@ -1114,8 +1143,8 @@ AggregateColumn AvgColumn::CreateAvgAggregateColumn(
       buckets.push_back(sum_column->buckets_[i] / count_column->buckets_[i]);
     }
   }
-  return AggregateColumn(std::move(buckets), sum_column->start_time_,
-                         sum_column->bucket_interval_);
+  return {std::move(buckets), sum_column->start_time_,
+          sum_column->bucket_interval_};
 }
 
 AvgColumn::AvgColumn(std::shared_ptr<SumColumn> sum_column,

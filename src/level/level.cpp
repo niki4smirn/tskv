@@ -53,6 +53,11 @@ Column Level::ReadRawValues(const TimeRange& time_range) const {
 }
 
 void Level::Write(const SerializableColumn& column) {
+  if (!options_.store_raw &&
+      (column->GetType() == ColumnType::kRawValues ||
+       column->GetType() == ColumnType::kRawTimestamps)) {
+    return;
+  }
   if (auto read_col = std::dynamic_pointer_cast<IReadColumn>(column)) {
     auto time_range = read_col->GetTimeRange();
     time_range_ = time_range_.Merge(time_range);
@@ -67,10 +72,12 @@ void Level::Write(const SerializableColumn& column) {
     return;
   }
 
-  PageId page_id = it->second;
+  PageId& page_id = it->second;
   auto read_column = std::dynamic_pointer_cast<ISerializableColumn>(
       FromBytes(storage_->Read(page_id), column_type));
   read_column->Merge(column);
+  storage_->DeletePage(page_id);
+  page_id = storage_->CreatePage();
   storage_->Write(page_id, read_column->ToBytes());
 }
 
@@ -81,16 +88,24 @@ void Level::MovePagesFrom(Level& other) {
                      other.page_ids_.end());
   } else {
     for (auto& [column_type, page_id] : other.page_ids_) {
+      auto it = std::ranges::find(page_ids_, column_type,
+                                  &std::pair<ColumnType, PageId>::first);
+      if (it == page_ids_.end()) {
+        if ((column_type == ColumnType::kRawTimestamps ||
+             column_type == ColumnType::kRawValues) &&
+            !options_.store_raw) {
+          storage_->DeletePage(page_id);
+        } else {
+          page_ids_.emplace_back(column_type, page_id);
+        }
+        continue;
+      }
+
       auto bytes = other.storage_->Read(page_id);
       auto column = std::dynamic_pointer_cast<ISerializableColumn>(
           FromBytes(bytes, column_type));
       if (column_type == ColumnType::kRawTimestamps ||
           column_type == ColumnType::kRawValues) {
-        if (!options_.store_raw) {
-          // it's not really right to delete page, we need to truncate it
-          other.storage_->DeletePage(page_id);
-          continue;
-        }
         Write(column);
       } else {
         auto aggreagte_column =
@@ -98,8 +113,10 @@ void Level::MovePagesFrom(Level& other) {
         aggreagte_column->ScaleBuckets(options_.bucket_interval);
         Write(aggreagte_column);
       }
+      other.storage_->DeletePage(page_id);
     }
   }
+
   time_range_ = time_range_.Merge(other.time_range_);
 
   other.page_ids_.clear();
